@@ -1,4 +1,5 @@
-import { ArrowDownRight, ArrowRight, CalendarDays, Check, ChevronRight, FileText, Home, Layers3, MapPin, UsersRound } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowDownRight, ArrowRight, CalendarDays, Check, ChevronRight, Download, FileText, Home, Layers3, MapPin, UsersRound } from 'lucide-react';
 import './_group.css';
 
 function RentlyMark({ inverse = false, size = 40 }: { inverse?: boolean; size?: number }) {
@@ -24,12 +25,119 @@ function Wordmark({ compact = false }: { compact?: boolean }) {
 }
 
 const properties = [
-  { name: 'Cedar House', location: 'North Park · San Diego', kind: 'Duplex', units: '2 units', accent: 'bg-[#dce8f3]', glyph: 'CH' },
-  { name: 'Juniper Flat', location: 'Hillcrest · San Diego', kind: 'Apartment', units: '1 unit', accent: 'bg-[#e6e8df]', glyph: 'JF' },
-  { name: 'Bayview Cottage', location: 'Point Loma · San Diego', kind: 'Detached home', units: '1 unit', accent: 'bg-[#e8e1d8]', glyph: 'BC' },
-];
+  {
+    name: 'Cedar House',
+    location: 'North Park · San Diego',
+    kind: 'Duplex',
+    units: '2 units',
+    accent: 'bg-[#dce8f3]',
+    glyph: 'CH',
+    tenant: {
+      name: 'Demo Tenant 01',
+      email: 'tenant01@example.test',
+      phone: '+1 (555) 010-0101',
+      unit: 'Unit 02',
+      leasePeriod: '01 Jan 2026 - 31 Dec 2026',
+    },
+  },
+  {
+    name: 'Juniper Flat',
+    location: 'Hillcrest · San Diego',
+    kind: 'Apartment',
+    units: '1 unit',
+    accent: 'bg-[#e6e8df]',
+    glyph: 'JF',
+    tenant: {
+      name: 'Demo Tenant 02',
+      email: 'tenant02@example.test',
+      phone: '+1 (555) 010-0102',
+      unit: 'Unit 01',
+      leasePeriod: '01 Feb 2026 - 31 Jan 2027',
+    },
+  },
+  {
+    name: 'Bayview Cottage',
+    location: 'Point Loma · San Diego',
+    kind: 'Detached home',
+    units: '1 unit',
+    accent: 'bg-[#e8e1d8]',
+    glyph: 'BC',
+    tenant: {
+      name: 'Demo Tenant 03',
+      email: 'tenant03@example.test',
+      phone: '+1 (555) 010-0103',
+      unit: 'Unit 01',
+      leasePeriod: '01 Mar 2026 - 28 Feb 2027',
+    },
+  },
+] as const;
+
+function downloadSampleLease(property: (typeof properties)[number]) {
+  const lines = [
+    'SAMPLE RENTAL AGREEMENT',
+    'DEMO ONLY - NOT A LEGAL CONTRACT',
+    `Property: ${property.name}`,
+    `Unit: ${property.tenant.unit}`,
+    `Tenant: ${property.tenant.name}`,
+    `Email: ${property.tenant.email}`,
+    `Phone: ${property.tenant.phone}`,
+    `Lease period: ${property.tenant.leasePeriod}`,
+    '',
+    'This sample demonstrates the Rently lease download action.',
+    'Replace it with the saved lease document after Supabase is connected.',
+  ];
+  const escapePdfText = (value: string) =>
+    value
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)')
+      .replace(/[^\x20-\x7E]/g, '?');
+  const commands = lines
+    .map((line, index) => {
+      const position =
+        index === 0
+          ? '72 740 Td\n/F1 18 Tf'
+          : index === 1
+            ? '0 -32 Td\n/F1 10 Tf'
+            : '0 -22 Td';
+      return `${position}\n(${escapePdfText(line)}) Tj`;
+    })
+    .join('\n');
+  const stream = `BT\n${commands}\nET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  const url = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `rently-sample-lease-${property.name.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export function PortfolioFocus() {
+  const [selectedProperty, setSelectedProperty] =
+    useState<(typeof properties)[number] | null>(null);
+
   return (
     <main id="top" className="min-h-[100dvh] overflow-hidden bg-[#e9eef3] text-[#102238]">
       <header className="relative z-10 mx-auto flex max-w-[1440px] items-center justify-between border-b border-[#d1dbe4] px-5 py-4 md:px-12 lg:px-[7.4%]">
@@ -72,20 +180,56 @@ export function PortfolioFocus() {
                 <div><p className="font-mono text-[8px] uppercase tracking-[.12em] text-[#536c83]">Owned properties</p><h2 className="mt-1 text-[17px] font-semibold tracking-[-.045em]">Your portfolio <span className="font-mono text-[10px] font-normal text-[#6f8295]">/ 03</span></h2></div>
                 <span className="flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[.07em] text-[#536c83]"><Home size={12} className="text-[#3f7cff]" /> Landlord-owned</span>
               </div>
+              <p className="mb-2 px-1 font-mono text-[7px] uppercase tracking-[.08em] text-[#7b8da0]">Select a property for tenant and lease details</p>
               <div className="space-y-2">
                 {properties.map((property, index) => (
-                  <article key={property.name} className="grid grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 border border-[#d7e0e7] bg-[#f7f9fb] p-2.5 md:grid-cols-[48px_minmax(0,1fr)_auto_auto] md:gap-4 md:p-3">
+                  <button
+                    key={property.name}
+                    type="button"
+                    onClick={() => setSelectedProperty(property)}
+                    aria-pressed={selectedProperty?.name === property.name}
+                    aria-label={`Show tenant and lease details for ${property.name}`}
+                    className={`grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 bg-[#f7f9fb] p-2.5 text-left transition-colors hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] md:grid-cols-[48px_minmax(0,1fr)_auto_auto] md:gap-4 md:p-3 ${selectedProperty?.name === property.name ? 'border-[#3f7cff] ring-1 ring-[#3f7cff]' : 'border border-[#d7e0e7]'}`}
+                  >
                     <div className={`grid h-[42px] w-[42px] place-items-center ${property.accent} font-mono text-[10px] font-medium tracking-[.08em] text-[#344f68] md:h-12 md:w-12`}>{property.glyph}</div>
                     <div className="min-w-0"><div className="flex flex-wrap items-center gap-x-2 gap-y-0.5"><p className="truncate text-[11px] font-semibold tracking-[-.02em]">{property.name}</p><span className="border border-[#bfcfdd] px-1 py-0.5 font-mono text-[7px] uppercase tracking-[.06em] text-[#526c83]">Owned</span></div><p className="mt-1 flex items-center gap-1 truncate font-mono text-[8px] text-[#7b8da0]"><MapPin size={9} />{property.location}</p></div>
                     <span className="hidden font-mono text-[8px] text-[#61768b] md:block">{property.kind}</span>
                     <span className="whitespace-nowrap border-l border-[#dce3e9] pl-3 font-mono text-[8px] text-[#61768b]">{property.units}</span>
                     <span className="sr-only">Sample property {index + 1}</span>
-                  </article>
+                  </button>
                 ))}
               </div>
             </div>
 
             <div id="records" className="mt-3 grid gap-2.5 md:grid-cols-[.72fr_1.28fr]">
+              {selectedProperty ? (
+                <>
+                  <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3 md:p-4">
+                    <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">Selected property</p><Home size={14} className="text-[#3f7cff]" /></div>
+                    <p className="mt-2 text-[12px] font-semibold tracking-[-.025em]">{selectedProperty.name}</p>
+                    <p className="mt-1 font-mono text-[8px] text-[#778a9c]">{selectedProperty.location}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[7px] uppercase tracking-[.05em]">
+                      <span className="border border-[#cbd8e2] bg-[#e8eef3] px-1.5 py-1 text-[#47617a]">{selectedProperty.tenant.unit}</span>
+                      <span className="border border-[#d8e1e8] px-1.5 py-1 text-[#6b7f92]">{selectedProperty.units}</span>
+                    </div>
+                  </div>
+                  <div className="border border-[#d8e1e8] bg-[#f8fafb] px-3 py-3 md:px-4" aria-live="polite">
+                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-bold">Tenant and lease details</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Demo data</span></div>
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[#dce3e9] py-2">
+                      <div><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Tenant</dt><dd className="mt-0.5 text-[9px] font-semibold">{selectedProperty.tenant.name}</dd></div>
+                      <div><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Unit</dt><dd className="mt-0.5 text-[9px] font-semibold">{selectedProperty.tenant.unit}</dd></div>
+                      <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Email</dt><dd className="mt-0.5 break-all text-[9px] font-semibold">{selectedProperty.tenant.email}</dd></div>
+                      <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Phone</dt><dd className="mt-0.5 text-[9px] font-semibold">{selectedProperty.tenant.phone}</dd></div>
+                      <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Lease period</dt><dd className="mt-0.5 text-[9px] font-semibold">{selectedProperty.tenant.leasePeriod}</dd></div>
+                    </dl>
+                    <button type="button" onClick={() => downloadSampleLease(selectedProperty)} className="mt-2 inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white transition-colors hover:bg-[#214a83] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]">
+                      <Download size={13} /> Download sample lease PDF
+                    </button>
+                    <p className="mt-1.5 font-mono text-[7px] text-[#8192a3]">Sample document only · not a legal contract</p>
+                  </div>
+                </>
+              ) : (
+                <>
               <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3 md:p-4">
                 <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">Linked rental records</p><Layers3 size={14} className="text-[#3f7cff]" /></div>
                 <p className="mt-2 text-[12px] font-semibold tracking-[-.025em]">Records are not properties</p>
@@ -104,6 +248,8 @@ export function PortfolioFocus() {
                 </div>
                 <div className="mt-1 flex items-center gap-2 border-t border-[#e1e7ec] pt-2"><UsersRound size={12} className="text-[#73889b]" /><p className="font-mono text-[7px] text-[#7d90a1]">Tenant details belong to the lease, not the property inventory.</p></div>
               </div>
+                </>
+              )}
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#d8e1e8] px-1 pt-2 font-mono text-[7px] uppercase tracking-[.08em] text-[#7d90a1]"><span>Property → unit → lease → rent record</span><span className="text-[#60778c]">Illustrative data only · not an account</span></div>
           </div>
