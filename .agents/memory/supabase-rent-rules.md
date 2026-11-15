@@ -1,0 +1,16 @@
+---
+name: Rently Supabase and rent rules
+description: Rently's selected Supabase project, owner authentication, and recurring rent due-date behavior.
+---
+
+Use the existing Supabase project named Rently with Supabase Auth email/password. Keep owner-owned records isolated with row-level security.
+
+**Why:** the user selected this project and authentication method for the app.
+
+**How to apply:** use the project publishable key only in browser code; never expose a service-role key. Scope every property, tenant, lease, payment, and file operation to the authenticated owner.
+
+Monthly rent is due on the contractual day of the month. If that day does not exist in a month, use the month's final day. An unpaid installment becomes overdue the day after its due date, with no grace period.
+
+**Why:** the user selected this recurring due-date rule.
+
+**How to apply:** preserve the original contract due day when generating each month so a short-month adjustment does not shift future installments.
