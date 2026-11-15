@@ -92,9 +92,10 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
       if (!authData.user) throw new Error('سجّل الدخول لرفع عقد الإيجار.');
 
       const { data: lease, error: leaseError } = await supabase
-        .from('leases')
+        .from('rently_leases')
         .select('id')
         .eq('id', leaseId)
+        .eq('owner_id', authData.user.id)
         .maybeSingle();
       if (leaseError) throw leaseError;
       if (!lease) {
@@ -154,10 +155,12 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
         setNotice('تم حفظ ملف العقد الخاص بهذا العقد.');
       }
     } catch (uploadError) {
+      let cleanupFailed = false;
       if (newPath) {
-        await supabase.storage.from(BUCKET).remove([newPath]);
+        const cleanup = await supabase.storage.from(BUCKET).remove([newPath]);
+        cleanupFailed = Boolean(cleanup.error);
       }
-      setError(errorMessage(uploadError));
+      setError(`${errorMessage(uploadError)}${cleanupFailed ? ' تعذر تنظيف الملف غير المرتبط؛ لم يتم حفظه كعقد.' : ''}`);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';

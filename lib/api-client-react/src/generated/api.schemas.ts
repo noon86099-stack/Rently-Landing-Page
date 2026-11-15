@@ -72,22 +72,12 @@ export interface RentlyTenant {
   phone: string | null;
 }
 
-export type RentlyPaymentStatus = typeof RentlyPaymentStatus[keyof typeof RentlyPaymentStatus];
-
-
-export const RentlyPaymentStatus = {
-  paid: 'paid',
-  overdue: 'overdue',
-  upcoming: 'upcoming',
-} as const;
-
 export interface RentlyPayment {
   id: string;
   dueDate: string;
   amount: number;
   /** @nullable */
   paidAt: string | null;
-  status: RentlyPaymentStatus;
 }
 
 export type RentlyLeaseStatus = typeof RentlyLeaseStatus[keyof typeof RentlyLeaseStatus];

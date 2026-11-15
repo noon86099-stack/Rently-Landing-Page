@@ -1,7 +1,7 @@
 kind = "web"
 previewPath = "/"
 title = "Rently"
-description = "A branded public Rently homepage and interactive demo portfolio for independent landlords and small property owners. Visitors can browse sample properties, inspect linked tenant and lease details, and download a clearly labeled sample lease PDF. Real Supabase data and contract storage are not connected yet."
+description = "Private rental-property workspace with Supabase email/password authentication, owner-scoped properties and tenant details, lease creation, monthly rent schedules, payment records, private signed lease files, and generated PDF drafts. Rent management requires the accompanying Supabase migration."
 version = "1.0.0"
 id = "artifacts/rently"
 router = "path"

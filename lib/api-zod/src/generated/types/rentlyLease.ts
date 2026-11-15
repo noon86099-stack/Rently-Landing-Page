@@ -13,8 +13,8 @@ export interface RentlyLease {
   id: string;
   unitId: string;
   tenantId: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   status: RentlyLeaseStatus;
   monthlyRent: number;
   /**

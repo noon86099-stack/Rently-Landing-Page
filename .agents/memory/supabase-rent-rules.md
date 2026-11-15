@@ -5,7 +5,9 @@ description: Rently's selected Supabase project, owner authentication, and recur
 
 Use the existing Supabase project named Rently with Supabase Auth email/password. Keep owner-owned records isolated with row-level security.
 
-**Why:** the user selected this project and authentication method for the app.
+Supabase is the user's chosen replacement for MongoDB Atlas/Mongoose in the pasted technical requirements. Do not migrate to MongoDB based on that earlier checklist.
+
+**Why:** the user repeatedly clarified "استخدم supabase" and "supabase هو البديل" after the MongoDB checklist, and selected this project and authentication method for the app.
 
 **How to apply:** use the project publishable key only in browser code; never expose a service-role key. Scope every property, tenant, lease, payment, and file operation to the authenticated owner.
 

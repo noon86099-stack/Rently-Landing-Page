@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 export type LeasePdfData = {
@@ -6,6 +9,7 @@ export type LeasePdfData = {
   endDate: string;
   monthlyRent: number;
   dueDay: number;
+  ownerEmail: string;
   propertyName: string;
   propertyLocation: string;
   unitLabel: string;
@@ -21,14 +25,7 @@ function displayDate(value: string): string {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function encodeStandardFontText(value: string): string {
-  // Standard PDF fonts use WinAnsi encoding. Keep unsupported characters
-  // legible instead of allowing one non-Latin name to break the whole export.
-  return Array.from(value, (character) => {
-    const code = character.codePointAt(0) ?? 0;
-    return code <= 255 ? character : "?";
-  }).join("");
-}
+let fontBytesPromise: Promise<Buffer> | undefined;
 
 export async function buildLeasePdf(data: LeasePdfData): Promise<Uint8Array> {
   const document = await PDFDocument.create();
@@ -36,7 +33,12 @@ export async function buildLeasePdf(data: LeasePdfData): Promise<Uint8Array> {
   document.setSubject("Owner-generated rental agreement draft");
   document.setCreator("Rently");
 
-  const regular = await document.embedFont(StandardFonts.Helvetica);
+  document.registerFontkit(fontkit);
+  const assetUrl = import.meta.url.includes("/dist/")
+    ? new URL("./assets/fonts/DejaVuSans.ttf", import.meta.url)
+    : new URL("../../assets/fonts/DejaVuSans.ttf", import.meta.url);
+  fontBytesPromise ??= readFile(fileURLToPath(assetUrl));
+  const regular = await document.embedFont(await fontBytesPromise, { subset: true });
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
   const navy = rgb(16 / 255, 34 / 255, 56 / 255);
   const blue = rgb(63 / 255, 124 / 255, 1);
@@ -51,16 +53,41 @@ export async function buildLeasePdf(data: LeasePdfData): Promise<Uint8Array> {
   ) => {
     const font = options.font ?? regular;
     const size = options.size ?? 11;
-    const text = encodeStandardFontText(value);
-    page.drawText(text, {
-      x: options.x ?? 56,
-      y,
-      size,
-      font,
-      color: options.color ?? navy,
-      maxWidth: 500,
-    });
-    y -= size + 8;
+    const width = 500;
+    let line = "";
+    const lines: string[] = [];
+    for (const word of value.replace(/[\u0000-\u001F\u007F]/g, " ").split(/\s+/)) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(candidate, size) > width && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+      // Wrap unusually long addresses or identifiers as well as words.
+      while (font.widthOfTextAtSize(line, size) > width) {
+        let splitAt = line.length - 1;
+        while (splitAt > 1 && font.widthOfTextAtSize(line.slice(0, splitAt), size) > width) splitAt--;
+        lines.push(line.slice(0, splitAt));
+        line = line.slice(splitAt);
+      }
+    }
+    if (line) lines.push(line);
+    for (const text of lines) {
+      if (y < 70) {
+        page = document.addPage(pageSize);
+        y = 744;
+      }
+      page.drawText(text, {
+        x: options.x ?? 56,
+        y,
+        size,
+        font,
+        color: options.color ?? navy,
+      });
+      y -= size + 7;
+    }
+    y -= 4;
   };
 
   const drawSection = (title: string) => {
@@ -83,10 +110,11 @@ export async function buildLeasePdf(data: LeasePdfData): Promise<Uint8Array> {
   drawText(`Document reference: ${data.id}`, { size: 8, color: muted });
 
   drawSection("Parties and premises");
-  drawText(`Owner: ${data.propertyName}`, { font: bold });
+  drawText(`Owner account: ${data.ownerEmail}`);
+  drawText(`Property: ${data.propertyName}`);
   drawText(`Property address: ${data.propertyLocation || "Not provided"}`);
   drawText(`Unit: ${data.unitLabel}`);
-  drawText(`Tenant: ${data.tenantName}`, { font: bold });
+  drawText(`Tenant: ${data.tenantName}`);
   if (data.tenantEmail) drawText(`Email: ${data.tenantEmail}`);
   if (data.tenantPhone) drawText(`Phone: ${data.tenantPhone}`);
 

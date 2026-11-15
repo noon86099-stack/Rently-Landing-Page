@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import {
   CreateRentlyLeaseBody,
   CreateRentlyLeaseResponse,
@@ -18,15 +18,17 @@ import { buildLeasePdf } from "../../lib/rently-pdf";
 const router: IRouter = Router();
 
 function statusForDatabaseError(code?: string): number {
-  if (code === "P0002" || code === "23503" || code === "42501") return 404;
+  if (code === "P0002" || code === "23503") return 404;
+  if (code === "42501") return 403;
+  if (code === "PGRST202" || code === "PGRST204" || code === "42P01" || code === "42703") return 503;
   if (code === "23P01" || code === "23505") return 409;
   if (code === "22023" || code === "22P02") return 400;
   return 500;
 }
 
 function failDatabaseRequest(
-  req: Parameters<Parameters<typeof router.post>[1]>[0],
-  res: Parameters<Parameters<typeof router.post>[1]>[1],
+  req: Request,
+  res: Response,
   code?: string,
 ): void {
   const status = statusForDatabaseError(code);
@@ -36,7 +38,11 @@ function failDatabaseRequest(
   );
   res.status(status).json({
     error:
-      status === 404
+      status === 503
+        ? "The Supabase rent-management migration must be applied before using this feature."
+        : status === 403
+          ? "This change is not permitted. The database may still need its owner-write policies."
+        : status === 404
         ? "The requested record was not found."
         : status === 409
           ? "The requested change conflicts with an existing record."
@@ -58,6 +64,10 @@ router.post(
 
     const { client, userId } = getRentlyContext(res);
     const input = parsed.data;
+    if (!input.name.trim() || !input.propertyType.trim()) {
+      res.status(400).json({ error: "Property name and type are required." });
+      return;
+    }
     const { data, error } = await client
       .from("rently_properties")
       .insert({
@@ -101,6 +111,10 @@ router.post(
     }
 
     const { client, userId } = getRentlyContext(res);
+    if (!parsed.data.unitLabel.trim()) {
+      res.status(400).json({ error: "Unit label is required." });
+      return;
+    }
     const { data, error } = await client
       .from("rently_units")
       .insert({
@@ -257,7 +271,7 @@ router.get(
       return;
     }
 
-    const { client } = getRentlyContext(res);
+    const { client, userEmail } = getRentlyContext(res);
     const { data, error } = await client
       .from("rently_leases")
       .select(
@@ -293,6 +307,7 @@ router.get(
       endDate: data.end_date,
       monthlyRent: Number(data.monthly_rent),
       dueDay: Number(data.due_day),
+      ownerEmail: userEmail,
       propertyName: property.name,
       propertyLocation: [
         property.street_address,

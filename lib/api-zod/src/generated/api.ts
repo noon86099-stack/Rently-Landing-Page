@@ -91,8 +91,8 @@ export const CreateRentlyLeaseBody = zod.object({
   "tenantFullName": zod.string().min(1).max(createRentlyLeaseBodyTenantFullNameMax),
   "tenantEmail": zod.string().email().nullish(),
   "tenantPhone": zod.string().max(createRentlyLeaseBodyTenantPhoneMax).nullish(),
-  "startDate": zod.coerce.date(),
-  "endDate": zod.coerce.date(),
+  "startDate": zod.string().date(),
+  "endDate": zod.string().date(),
   "monthlyRent": zod.number().gt(createRentlyLeaseBodyMonthlyRentExclusiveMin).max(createRentlyLeaseBodyMonthlyRentMax),
   "dueDay": zod.number().int().min(1).max(createRentlyLeaseBodyDueDayMax)
 })
@@ -105,8 +105,8 @@ export const CreateRentlyLeaseResponse = zod.object({
   "id": zod.string().uuid(),
   "unitId": zod.string().uuid(),
   "tenantId": zod.string().uuid(),
-  "startDate": zod.coerce.date(),
-  "endDate": zod.coerce.date(),
+  "startDate": zod.string().date(),
+  "endDate": zod.string().date(),
   "status": zod.enum(['active', 'ended', 'upcoming']),
   "monthlyRent": zod.number(),
   "dueDay": zod.number().int().min(1).max(createRentlyLeaseResponseDueDayMax),
@@ -118,10 +118,9 @@ export const CreateRentlyLeaseResponse = zod.object({
 }),
   "payments": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.string().date(),
   "amount": zod.number(),
-  "paidAt": zod.coerce.date().nullable(),
-  "status": zod.enum(['paid', 'overdue', 'upcoming'])
+  "paidAt": zod.string().date().nullable()
 }))
 })
 
@@ -134,15 +133,14 @@ export const RecordRentlyPaymentParams = zod.object({
 })
 
 export const RecordRentlyPaymentBody = zod.object({
-  "paidAt": zod.coerce.date()
+  "paidAt": zod.string().date()
 })
 
 export const RecordRentlyPaymentResponse = zod.object({
   "id": zod.string().uuid(),
-  "dueDate": zod.coerce.date(),
+  "dueDate": zod.string().date(),
   "amount": zod.number(),
-  "paidAt": zod.coerce.date().nullable(),
-  "status": zod.enum(['paid', 'overdue', 'upcoming'])
+  "paidAt": zod.string().date().nullable()
 })
 
 

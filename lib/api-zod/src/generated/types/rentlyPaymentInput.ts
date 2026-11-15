@@ -7,5 +7,5 @@
  */
 
 export interface RentlyPaymentInput {
-  paidAt: Date;
+  paidAt: string;
 }

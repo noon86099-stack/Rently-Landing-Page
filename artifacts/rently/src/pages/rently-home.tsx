@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownRight, ArrowRight, CalendarDays, Check, FileText, Home, Layers3, LoaderCircle, MapPin, UsersRound } from 'lucide-react';
-import type { User } from '@supabase/supabase-js';
+import { ArrowDownRight, ArrowRight, CalendarDays, Check, FileText, Home, LoaderCircle, MapPin, UsersRound } from 'lucide-react';
+import type { Session, User } from '@supabase/supabase-js';
 import { loadOwnerProperties, loadPropertyDetails, propertyLocation, type Property } from '@/lib/rently-data';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
+import { CreatePropertyForm } from '@/features/portfolio/create-property-form';
+import { AddUnitForm } from '@/features/portfolio/add-unit-form';
+import { CreateLeaseForm } from '@/features/portfolio/create-lease-form';
+import { LeaseRecord } from '@/features/portfolio/lease-record';
+import { Panel, useToday } from '@/features/portfolio/shared';
 
 function RentlyMark({ inverse = false, size = 40 }: { inverse?: boolean; size?: number }) {
   const stroke = inverse ? '#f0f5f8' : '#102238';
@@ -25,14 +30,6 @@ function Wordmark({ compact = false }: { compact?: boolean }) {
       <span className="text-[20px] font-bold tracking-[-.07em] text-[#102238]">rently<span className="text-[#3f7cff]">/</span></span>
     </a>
   );
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(`${value}T00:00:00`));
 }
 
 function AuthForm() {
@@ -160,6 +157,8 @@ function PropertyButton({
 export function RentlyHomepage() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const today = useToday();
   const [authReady, setAuthReady] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
 
@@ -170,19 +169,27 @@ export function RentlyHomepage() {
     }
 
     let active = true;
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    let previousOwnerId: string | null = null;
+    function applySession(nextSession: Session | null) {
       if (!active) return;
-      queryClient.clear();
-      setSelectedPropertyId(null);
-      setUser(session?.user ?? null);
+      const nextUser = nextSession?.user ?? null;
+      if (previousOwnerId !== (nextUser?.id ?? null)) {
+        queryClient.clear();
+        setSelectedPropertyId(null);
+      }
+      previousOwnerId = nextUser?.id ?? null;
+      setSession(nextSession);
+      setUser(nextUser);
       setAuthReady(true);
+    }
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      applySession(nextSession);
     });
 
     void supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return;
       if (error) console.error('Unable to restore the Rently session', error);
-      setUser(data.session?.user ?? null);
-      setAuthReady(true);
+      applySession(data.session);
     });
 
     return () => {
@@ -195,6 +202,9 @@ export function RentlyHomepage() {
     queryKey: ['rently-properties', user?.id],
     queryFn: () => loadOwnerProperties(user!.id),
     enabled: supabaseConfigured && authReady && Boolean(user),
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
@@ -211,10 +221,16 @@ export function RentlyHomepage() {
     queryKey: ['rently-property-details', user?.id, selectedPropertyId],
     queryFn: () => loadPropertyDetails(user!.id, selectedPropertyId!),
     enabled: Boolean(user && selectedPropertyId),
+    staleTime: 0,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
+  const token = session?.access_token ?? '';
 
   async function signOut() {
     if (!supabase) return;
+    queryClient.clear();
+    setSelectedPropertyId(null);
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Unable to sign out of Rently', error);
   }
@@ -263,7 +279,11 @@ export function RentlyHomepage() {
             <div id="portfolio" className="mt-3 border border-[#cdd9e3] bg-[#e7eef4] p-3 md:p-4">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-2 px-1">
                 <div><p className="font-mono text-[8px] uppercase tracking-[.12em] text-[#536c83]">Owned properties</p><h2 className="mt-1 text-[17px] font-semibold tracking-[-.045em]">Your portfolio <span className="font-mono text-[10px] font-normal text-[#6f8295]">{propertiesQuery.data ? `/ ${String(propertiesQuery.data.length).padStart(2, '0')}` : ''}</span></h2></div>
-                <span className="flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[.07em] text-[#536c83]"><Home size={12} className="text-[#3f7cff]" /> Landlord-owned</span>
+                {user && token ? (
+                  <CreatePropertyForm token={token} userId={user.id} onCreated={(id) => setSelectedPropertyId(id)} />
+                ) : (
+                  <span className="flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[.07em] text-[#536c83]"><Home size={12} className="text-[#3f7cff]" /> Landlord-owned</span>
+                )}
               </div>
               {!supabaseConfigured ? (
                 <div className="border border-[#d7e0e7] bg-[#f7f9fb] p-4">
@@ -287,8 +307,8 @@ export function RentlyHomepage() {
                 </div>
               ) : propertiesQuery.data?.length === 0 ? (
                 <div className="border border-[#d7e0e7] bg-[#f7f9fb] p-4">
-                  <p className="text-[11px] font-semibold">No properties are linked to this account yet.</p>
-                  <p className="mt-1 text-[9px] text-[#718398]">Your portfolio will appear here when property records are added.</p>
+                  <p className="text-[11px] font-semibold">No properties yet.</p>
+                  <p className="mt-1 text-[9px] text-[#718398]">Use + Property to add the first one.</p>
                 </div>
               ) : (
                 <>
@@ -311,42 +331,44 @@ export function RentlyHomepage() {
             <div id="records" className="mt-3">
               {!user ? null : !selectedProperty ? null : (
                 <div className="grid gap-2.5 md:grid-cols-[.72fr_1.28fr]">
-                  <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3 md:p-4">
-                    <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">Selected property</p><Home size={14} className="text-[#3f7cff]" /></div>
-                    <p className="mt-2 text-[12px] font-semibold tracking-[-.025em]">{selectedProperty.name}</p>
-                    <p className="mt-1 font-mono text-[8px] text-[#778a9c]">{propertyLocation(selectedProperty)}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[7px] uppercase tracking-[.05em]">
-                      <span className="border border-[#cbd8e2] bg-[#e8eef3] px-1.5 py-1 text-[#47617a]">{selectedProperty.property_type}</span>
-                      <span className="border border-[#d8e1e8] px-1.5 py-1 text-[#6b7f92]">{selectedProperty.units.length} {selectedProperty.units.length === 1 ? 'unit' : 'units'}</span>
+                  <div className="grid content-start gap-2.5">
+                    <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3 md:p-4">
+                      <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">Selected property</p><Home size={14} className="text-[#3f7cff]" /></div>
+                      <p data-testid="text-selected-property" className="mt-2 text-[12px] font-semibold tracking-[-.025em]">{selectedProperty.name}</p>
+                      <p className="mt-1 font-mono text-[8px] text-[#778a9c]">{propertyLocation(selectedProperty)}</p>
+                      <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[7px] uppercase tracking-[.05em]">
+                        <span className="border border-[#cbd8e2] bg-[#e8eef3] px-1.5 py-1 text-[#47617a]">{selectedProperty.property_type}</span>
+                        <span className="border border-[#d8e1e8] px-1.5 py-1 text-[#6b7f92]">{selectedProperty.units.length} {selectedProperty.units.length === 1 ? 'unit' : 'units'}</span>
+                      </div>
                     </div>
+                    {token && <Panel code="U+" title="Add unit"><AddUnitForm key={selectedProperty.id} token={token} userId={user.id} propertyId={selectedProperty.id} /></Panel>}
+                    {detailsQuery.data?.rentSetupRequired ? (
+                      <p role="alert" className="border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">Rent management needs the Supabase database update. Your existing records remain available.</p>
+                    ) : token && detailsQuery.data && <Panel code="L+" title="New lease"><CreateLeaseForm key={selectedProperty.id} token={token} userId={user.id} propertyId={selectedProperty.id} units={detailsQuery.data.units} /></Panel>}
                   </div>
                   <div className="border border-[#d8e1e8] bg-[#f8fafb] px-3 py-3 md:px-4" aria-live="polite">
-                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-bold">Tenant and lease details</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Linked records</span></div>
+                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-bold">Units / leases / dues</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">{today}</span></div>
                     {detailsQuery.isPending ? (
-                      <p role="status" className="flex items-center gap-2 border-t border-[#dce3e9] py-3 font-mono text-[9px] text-[#61768b]"><LoaderCircle size={13} className="animate-spin" /> Loading linked records…</p>
+                      <div role="status" aria-label="Loading records" className="space-y-2 border-t border-[#dce3e9] pt-3">{[0, 1, 2].map((i) => <div key={i} className="h-10 animate-pulse bg-[#e4ebf1]" />)}</div>
                     ) : detailsQuery.isError ? (
                       <div role="alert" className="border-t border-[#dce3e9] py-3 text-[9px] text-red-700">
-                        Could not load this property’s linked records.
-                        <button type="button" onClick={() => void detailsQuery.refetch()} className="ml-2 underline">Try again</button>
+                        Records failed to load: {detailsQuery.error.message}
+                        <button type="button" onClick={() => void detailsQuery.refetch()} className="ml-2 underline">Retry</button>
                       </div>
                     ) : detailsQuery.data ? (
                       <div className="space-y-3 border-t border-[#dce3e9] pt-2">
                         {detailsQuery.data.units.length === 0 ? (
-                          <p className="text-[9px] text-[#718398]">No units have been added to this property.</p>
+                          <p className="text-[9px] text-[#718398]">No units. Add one to start a lease.</p>
                         ) : detailsQuery.data.units.map((unit) => (
-                          <section key={unit.id} className="border-b border-[#e4e9ee] pb-3 last:border-0 last:pb-0">
-                            <p className="mb-2 font-mono text-[8px] uppercase tracking-[.06em] text-[#47617a]">{unit.unit_label}</p>
+                          <section key={unit.id} data-testid={`section-unit-${unit.id}`} className="border-b border-[#e4e9ee] pb-3 last:border-0 last:pb-0">
+                            <p className="mb-2 flex items-center justify-between font-mono text-[8px] uppercase tracking-[.06em] text-[#47617a]"><span>{unit.unit_label}</span><span className="text-[#8192a3]">{unit.leases.length} {unit.leases.length === 1 ? 'lease' : 'leases'}</span></p>
                             {unit.leases.length === 0 ? (
-                              <p className="text-[9px] text-[#718398]">No tenant or lease is linked to this unit.</p>
-                            ) : unit.leases.map((lease) => (
-                              <dl key={lease.id} className="grid grid-cols-2 gap-x-3 gap-y-2">
-                                <div><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Tenant</dt><dd className="mt-0.5 text-[9px] font-semibold">{lease.tenants?.full_name ?? 'Tenant details unavailable'}</dd></div>
-                                <div><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Lease status</dt><dd className="mt-0.5 text-[9px] font-semibold capitalize">{lease.status}</dd></div>
-                                {lease.tenants?.email && <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Email</dt><dd className="mt-0.5 break-all text-[9px] font-semibold">{lease.tenants.email}</dd></div>}
-                                {lease.tenants?.phone && <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Phone</dt><dd className="mt-0.5 text-[9px] font-semibold">{lease.tenants.phone}</dd></div>}
-                                <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Lease dates</dt><dd className="mt-0.5 text-[9px] font-semibold">{formatDate(lease.start_date)} – {formatDate(lease.end_date)}</dd></div>
-                              </dl>
-                            ))}
+                              <p className="text-[9px] text-[#718398]">Vacant. No lease.</p>
+                            ) : (
+                              <div className="space-y-2">{[...unit.leases].sort((a, b) => b.start_date.localeCompare(a.start_date)).map((lease) => (
+                                <LeaseRecord key={lease.id} lease={lease} ctx={{ token, userId: user.id, propertyId: selectedProperty.id, today }} />
+                              ))}</div>
+                            )}
                           </section>
                         ))}
                       </div>

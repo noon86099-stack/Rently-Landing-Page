@@ -20,8 +20,8 @@ export interface RentlyLeaseInput {
      * @nullable
      */
   tenantPhone?: string | null;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   /**
      * @maximum 100000000
      * @exclusiveMinimum 0

@@ -220,6 +220,13 @@ begin
     v_month_start := (v_month_start + interval '1 month')::date;
   end loop;
 
+  if not exists (
+    select 1 from public.rently_payments where lease_id = v_lease_id
+  ) then
+    raise exception 'No due date falls within this lease term'
+      using errcode = '22023';
+  end if;
+
   return v_lease_id;
 end;
 $$;
@@ -277,3 +284,74 @@ revoke all on function public.record_rently_payment(uuid, date)
   from public, anon;
 grant execute on function public.record_rently_payment(uuid, date)
   to authenticated;
+
+-- When the optional signed-document module is installed, bind documents to
+-- the same owner's real lease. NOT VALID preserves existing records while
+-- enforcing the foreign key for all future inserts/updates.
+do $$
+begin
+  if to_regclass('public.lease_documents') is not null then
+    if not exists (
+      select 1 from pg_constraint
+      where conname = 'lease_documents_rently_lease_owner_fkey'
+        and conrelid = 'public.lease_documents'::regclass
+    ) then
+      alter table public.lease_documents
+        add constraint lease_documents_rently_lease_owner_fkey
+        foreign key (lease_id, owner_id)
+        references public.rently_leases (id, owner_id)
+        on delete cascade not valid;
+    end if;
+
+    drop policy if exists "Owners can manage their lease document metadata"
+      on public.lease_documents;
+    create policy "Owners can manage their lease document metadata"
+      on public.lease_documents
+      for all to authenticated
+      using (
+        owner_id = (select auth.uid())
+        and exists (
+          select 1 from public.rently_leases l
+          where l.id = lease_id and l.owner_id = (select auth.uid())
+        )
+      )
+      with check (
+        owner_id = (select auth.uid())
+        and exists (
+          select 1 from public.rently_leases l
+          where l.id = lease_id and l.owner_id = (select auth.uid())
+        )
+      );
+  end if;
+
+  if to_regclass('storage.objects') is not null then
+    drop policy if exists "Lease files must belong to an owned Rently lease"
+      on storage.objects;
+    create policy "Lease files must belong to an owned Rently lease"
+      on storage.objects as restrictive
+      for all to authenticated
+      using (
+        bucket_id <> 'rently-lease-documents'
+        or (
+          (storage.foldername(name))[1] = (select auth.uid())::text
+          and exists (
+            select 1 from public.rently_leases l
+            where l.id::text = (storage.foldername(name))[2]
+              and l.owner_id = (select auth.uid())
+          )
+        )
+      )
+      with check (
+        bucket_id <> 'rently-lease-documents'
+        or (
+          (storage.foldername(name))[1] = (select auth.uid())::text
+          and exists (
+            select 1 from public.rently_leases l
+            where l.id::text = (storage.foldername(name))[2]
+              and l.owner_id = (select auth.uid())
+          )
+        )
+      );
+  end if;
+end;
+$$;

@@ -12,7 +12,6 @@ export * from './rentlyLeaseInput';
 export * from './rentlyLeaseStatus';
 export * from './rentlyPayment';
 export * from './rentlyPaymentInput';
-export * from './rentlyPaymentStatus';
 export * from './rentlyProperty';
 export * from './rentlyPropertyInput';
 export * from './rentlyTenant';

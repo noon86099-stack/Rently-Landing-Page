@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { NextFunction, Request, Response } from "express";
 
 const supabaseUrl =
@@ -10,8 +10,9 @@ const publishableKey =
   "";
 
 export type RentlyRequestContext = {
-  client: ReturnType<typeof createClient>;
+  client: SupabaseClient;
   userId: string;
+  userEmail: string;
 };
 
 export function requireRentlyAuth(
@@ -54,7 +55,11 @@ export function requireRentlyAuth(
       return;
     }
 
-    res.locals.rently = { client, userId: data.user.id } satisfies RentlyRequestContext;
+    res.locals.rently = {
+      client,
+      userId: data.user.id,
+      userEmail: data.user.email ?? "Owner account",
+    } satisfies RentlyRequestContext;
     next();
   })().catch((error: unknown) => {
     req.log.error(
