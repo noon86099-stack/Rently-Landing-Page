@@ -144,6 +144,47 @@ paths:
           description: Authentication required
         "404":
           description: Payment not found
+  /rently/payments/{paymentId}/corrections:
+    parameters:
+      - name: paymentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: correctRentlyPayment
+      tags: [rently]
+      summary: Correct a recorded payment date with immutable history
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RentlyPaymentCorrectionInput" }
+      responses:
+        "200":
+          description: Payment corrected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RentlyPayment" }
+        "400": { description: Invalid date or reason }
+        "401": { description: Authentication required }
+        "404": { description: Payment not found }
+        "409": { description: Payment is unpaid or has changed since it was loaded }
+    get:
+      operationId: listRentlyPaymentCorrections
+      tags: [rently]
+      summary: Read the owner's permanent payment correction history
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Correction history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RentlyPaymentCorrection" }
+        "401": { description: Authentication required }
+        "404": { description: Payment not found }
   /rently/leases/{leaseId}/pdf:
     get:
       operationId: downloadRentlyLeasePdf
@@ -268,4 +309,23 @@ components:
       required: [paidAt]
       properties:
         paidAt: { type: string, format: date }
+    RentlyPaymentCorrectionInput:
+      type: object
+      required: [paidAt, expectedPaidAt, reason, confirmed]
+      properties:
+        paidAt: { type: string, format: date }
+        expectedPaidAt: { type: string, format: date }
+        reason: { type: string, minLength: 1, maxLength: 1000 }
+        confirmed: { type: boolean, enum: [true] }
+    RentlyPaymentCorrection:
+      type: object
+      required: [id, paymentId, previousPaidAt, newPaidAt, reason, actorId, correctedAt]
+      properties:
+        id: { type: string, format: uuid }
+        paymentId: { type: string, format: uuid }
+        previousPaidAt: { type: string, format: date }
+        newPaidAt: { type: string, format: date }
+        reason: { type: string }
+        actorId: { type: string, format: uuid }
+        correctedAt: { type: string, format: date-time }
 

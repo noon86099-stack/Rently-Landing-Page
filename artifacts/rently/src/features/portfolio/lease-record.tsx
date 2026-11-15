@@ -4,6 +4,7 @@ import { Download, LoaderCircle } from 'lucide-react';
 import { getDownloadRentlyLeasePdfQueryKey, useDownloadRentlyLeasePdf, useRecordRentlyPayment } from '@workspace/api-client-react';
 import type { Lease, Payment } from '@/lib/rently-data';
 import { LeaseDocumentControl } from '@/features/leases/lease-document-control';
+import { PaymentCorrection } from './payment-correction';
 import { FormNotice, authRequest, errorMessage, formatDate, formatMoney, ghostBtn, inputCls, invalidatePortfolio } from './shared';
 
 type Ctx = { token: string; userId: string; propertyId: string; today: string };
@@ -41,7 +42,7 @@ function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
       <span className="font-mono text-[9px] tabular-nums text-[#47617a]">{formatMoney(payment.amount)}</span>
       <span data-testid={`status-payment-${payment.id}`} className={`w-fit border px-1.5 py-0.5 font-mono text-[7px] uppercase tracking-[.06em] ${s.cls}`}>{s.label}</span>
       {payment.paid_at ? (
-        <span className="font-mono text-[8px] text-[#3d6324]">Paid {formatDate(payment.paid_at)}</span>
+        <PaymentCorrection payment={payment} ctx={ctx} />
       ) : (
         <form onSubmit={submit} noValidate className="grid gap-1">
           <div className="flex gap-1">

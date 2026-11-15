@@ -7,7 +7,10 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 const root = new URL("../../", import.meta.url);
-const migrationName = "20261116000100_rently_rent_management.sql";
+const migrationNames = [
+  "20261116000100_rently_rent_management.sql",
+  "20261116000200_rently_payment_corrections.sql",
+];
 const connectionString = process.env.SUPABASE_DB_URL;
 if (!connectionString) {
   throw new Error("Add SUPABASE_DB_URL through Replit Secrets before migrating.");
@@ -27,10 +30,9 @@ const ca = await fs.readFile(
   new URL("attached_assets/prod-ca-2021_1794772789110.crt", root),
   "utf8",
 );
-const sql = await fs.readFile(
-  new URL(`supabase/migrations/${migrationName}`, root),
-  "utf8",
-);
+const sql = (await Promise.all(migrationNames.map((name) =>
+  fs.readFile(new URL(`supabase/migrations/${name}`, root), "utf8"),
+))).join("\n");
 const client = new pg.Client({
   connectionString: url.toString(),
   ssl: { ca, rejectUnauthorized: true },

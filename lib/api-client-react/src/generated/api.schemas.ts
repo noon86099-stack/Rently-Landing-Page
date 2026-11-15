@@ -138,3 +138,24 @@ export interface RentlyPaymentInput {
   paidAt: string;
 }
 
+export interface RentlyPaymentCorrectionInput {
+  paidAt: string;
+  expectedPaidAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  reason: string;
+  confirmed: true;
+}
+
+export interface RentlyPaymentCorrection {
+  id: string;
+  paymentId: string;
+  previousPaidAt: string;
+  newPaidAt: string;
+  reason: string;
+  actorId: string;
+  correctedAt: string;
+}
+

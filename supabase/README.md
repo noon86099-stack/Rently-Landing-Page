@@ -24,13 +24,14 @@ tokens with Supabase Auth and accesses tables using the same user's RLS context.
 1. `supabase/migrations/20261115000100_rently_owner_portfolio.sql`
 2. `artifacts/rently/supabase/migrations/20261115190000_lease_documents_storage.sql`
 3. `supabase/migrations/20261116000100_rently_rent_management.sql`
+4. `supabase/migrations/20261116000200_rently_payment_corrections.sql`
 
 The existing project has the first two modules. The third migration is
 additive: it preserves existing properties, tenants, and leases. Older leases
 remain readable with missing rent terms rather than inventing amounts or dues.
 For these leases the UI does not offer a generated PDF until terms are present.
 
-Apply the third migration from the workspace with:
+Apply the additive rent-management and correction migrations from the workspace with:
 
 ```sh
 pnpm --filter @workspace/scripts run rently:migrate
@@ -57,6 +58,14 @@ Supabase SQL Editor. Do not run destructive resets or replace the database.
   day. The UI derives this state, not a potentially stale stored status flag.
 - Payment dates after the database's `current_date` are rejected.
 - Direct lease/payment writes and direct record deletion are not granted.
+- Paid dates can only be corrected by the payment owner, with a non-empty reason
+  and the previously loaded date. Stale corrections are rejected rather than
+  overwriting another session's change. Unpaid dues cannot be corrected.
+- Corrections update only `paid_at`; due IDs, dates, amounts and lease links stay
+  intact. Duplicate initial payment recording remains blocked.
+- Correction history stores old/new dates, reason, authenticated actor and server
+  time atomically. Owners can read only their history, never write or erase it.
+  It has no cascading foreign keys, so account/lease deletion cannot erase history.
 
 If the optional document module exists, the rent migration adds an
 owner/lease foreign key and tightens metadata and storage policies. The new

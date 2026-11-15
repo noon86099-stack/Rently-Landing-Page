@@ -38,6 +38,9 @@ async function database() {
   const migration = await readFile(new URL("supabase/migrations/20261116000100_rently_rent_management.sql", root), "utf8");
   await db.exec(migration);
   await db.exec(migration); // Safe to apply again after a rolled-back deployment.
+  const corrections = await readFile(new URL("supabase/migrations/20261116000200_rently_payment_corrections.sql", root), "utf8");
+  await db.exec(corrections);
+  await db.exec(corrections);
   await db.exec(`
     insert into public.rently_properties (id,owner_id,name) values ('${property}','${owner}','Test property');
     insert into public.rently_units (id,owner_id,property_id,unit_label) values ('${unit}','${owner}','${property}','A');
@@ -130,5 +133,91 @@ test("owner writes work without granting access to someone else's records", asyn
     assert.equal((await db.query("select * from public.rently_tenants")).rows.length, 0);
     assert.equal((await db.query("select * from public.rently_leases")).rows.length, 0);
     await assert.rejects(lease(db, "2027-01-01", "2040-01-01"), /Invalid lease dates/);
+  } finally { await db.close(); }
+});
+
+test("correction preserves the due and atomically appends immutable owner-only history", async () => {
+  const db = await database();
+  try {
+    await asOwner(db, owner);
+    await lease(db, "2026-01-31", "2026-03-31");
+    const original = (await db.query<{ id: string; lease_id: string; amount: string; due: string }>(
+      "select id,lease_id,amount::text,due_date::text as due from public.rently_payments order by due_date limit 1",
+    )).rows[0];
+    const correct = (next: string | null, expected: string | null, reason: string | null) =>
+      db.query("select public.correct_rently_payment($1,$2::date,$3::date,$4)", [original.id, next, expected, reason]);
+    await assert.rejects(correct("2026-02-02", "2026-02-01", "Fix"), /not recorded/);
+    await db.query("select public.record_rently_payment($1,'2026-02-01')", [original.id]);
+    await correct("2026-02-02", "2026-02-01", "  Receipt checked  ");
+    await correct("2026-02-03", "2026-02-02", "Bank statement checked");
+    const saved = (await db.query(
+      "select id,lease_id,amount::text,due_date::text as due from public.rently_payments where id=$1", [original.id],
+    )).rows[0];
+    assert.deepEqual(saved, original);
+    assert.equal((await db.query("select * from public.rently_payments")).rows.length, 3);
+    const history = (await db.query<{
+      actor_id: string; owner_id: string; previous: string; next: string; reason: string; corrected_at: unknown;
+    }>(`select actor_id,owner_id,previous_paid_at::text as previous,new_paid_at::text as next,reason,corrected_at
+        from public.rently_payment_corrections order by corrected_at`)).rows;
+    assert.deepEqual(history.map((row) => [row.previous, row.next, row.reason]), [
+      ["2026-02-01", "2026-02-02", "Receipt checked"],
+      ["2026-02-02", "2026-02-03", "Bank statement checked"],
+    ]);
+    assert.ok(history.every((row) => row.actor_id === owner && row.owner_id === owner && row.corrected_at));
+
+    await assert.rejects(correct("2026-02-04", "2026-02-01", "Stale session"), /reload/);
+    await assert.rejects(correct("2026-02-03", "2026-02-03", "No change"), /must change/);
+    for (const reason of ["", "   ", "x".repeat(1001), null]) {
+      await assert.rejects(correct("2026-02-04", "2026-02-03", reason), /valid/);
+    }
+    await assert.rejects(correct(null, "2026-02-03", "Missing date"), /valid/);
+    await assert.rejects(correct("2999-01-01", "2026-02-03", "Future"), /valid/);
+    await assert.rejects(correct("2026-02-30", "2026-02-03", "Invalid date"));
+    await assert.rejects(db.query("update public.rently_payments set paid_at='2026-02-04' where id=$1", [original.id]), /permission/);
+    await assert.rejects(db.query("delete from public.rently_payments where id=$1", [original.id]), /permission/);
+    await assert.rejects(db.query("select public.record_rently_payment($1,'2026-02-04')", [original.id]), /already/);
+    await assert.rejects(db.query("update public.rently_payment_corrections set reason='Forged'"), /permission/);
+    await assert.rejects(db.query("delete from public.rently_payment_corrections"), /permission/);
+    await assert.rejects(db.query(`insert into public.rently_payment_corrections
+      (payment_id,owner_id,actor_id,previous_paid_at,new_paid_at,reason)
+      values($1,$2,$2,'2026-02-03','2026-02-04','Forged')`, [original.id, owner]), /permission/);
+
+    await asOwner(db, other);
+    assert.equal((await db.query("select * from public.rently_payment_corrections")).rows.length, 0);
+    await assert.rejects(correct("2026-02-04", "2026-02-03", "Hijack"), /not found/);
+    await asOwner(db, "");
+    await assert.rejects(correct("2026-02-04", "2026-02-03", "Unauthenticated"), /Authentication/);
+    await db.exec("set role anon");
+    await assert.rejects(correct("2026-02-04", "2026-02-03", "Anonymous"), /permission/);
+
+    await asOwner(db, owner);
+    assert.equal((await db.query("select paid_at::text as date from public.rently_payments where id=$1", [original.id])).rows[0].date, "2026-02-03");
+    assert.equal((await db.query("select * from public.rently_payment_corrections")).rows.length, 2);
+    await db.exec("reset role");
+    // Even privileged deletion cannot silently rewrite the audit.
+    await assert.rejects(db.exec("delete from public.rently_payment_corrections"), /immutable/);
+    await assert.rejects(db.exec("truncate public.rently_payment_corrections"), /immutable/);
+    await db.query("delete from public.rently_leases where id=$1", [original.lease_id]);
+    assert.equal((await db.query("select * from public.rently_payments")).rows.length, 0);
+    assert.equal((await db.query("select * from public.rently_payment_corrections")).rows.length, 2);
+  } finally { await db.close(); }
+});
+
+test("an audit failure rolls back the correction rather than losing evidence", async () => {
+  const db = await database();
+  try {
+    await asOwner(db, owner);
+    await lease(db, "2026-01-31", "2026-03-31");
+    const id = (await db.query<{ id: string }>("select id from public.rently_payments limit 1")).rows[0].id;
+    await db.query("select public.record_rently_payment($1,'2026-02-01')", [id]);
+    await db.exec(`reset role;
+      create function public.reject_test_audit() returns trigger language plpgsql as $$
+      begin raise exception 'Simulated audit write failure'; end; $$;
+      create trigger reject_test_audit before insert on public.rently_payment_corrections
+      for each row execute function public.reject_test_audit();`);
+    await asOwner(db, owner);
+    await assert.rejects(db.query("select public.correct_rently_payment($1,'2026-02-02','2026-02-01','Receipt')", [id]), /audit write failure/);
+    assert.equal((await db.query("select paid_at::text as date from public.rently_payments where id=$1", [id])).rows[0].date, "2026-02-01");
+    assert.equal((await db.query("select * from public.rently_payment_corrections")).rows.length, 0);
   } finally { await db.close(); }
 });

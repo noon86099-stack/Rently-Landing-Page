@@ -145,6 +145,51 @@ export const RecordRentlyPaymentResponse = zod.object({
 
 
 /**
+ * @summary Correct a recorded payment date with immutable history
+ */
+export const CorrectRentlyPaymentParams = zod.object({
+  "paymentId": zod.coerce.string().uuid()
+})
+
+export const correctRentlyPaymentBodyReasonMax = 1000;
+
+
+
+export const CorrectRentlyPaymentBody = zod.object({
+  "paidAt": zod.string().date(),
+  "expectedPaidAt": zod.string().date(),
+  "reason": zod.string().min(1).max(correctRentlyPaymentBodyReasonMax),
+  "confirmed": zod.literal(true)
+})
+
+export const CorrectRentlyPaymentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "dueDate": zod.string().date(),
+  "amount": zod.number(),
+  "paidAt": zod.string().date().nullable()
+})
+
+
+/**
+ * @summary Read the owner's permanent payment correction history
+ */
+export const ListRentlyPaymentCorrectionsParams = zod.object({
+  "paymentId": zod.coerce.string().uuid()
+})
+
+export const ListRentlyPaymentCorrectionsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "paymentId": zod.string().uuid(),
+  "previousPaidAt": zod.string().date(),
+  "newPaidAt": zod.string().date(),
+  "reason": zod.string(),
+  "actorId": zod.string().uuid(),
+  "correctedAt": zod.string().datetime({"offset":true})
+})
+export const ListRentlyPaymentCorrectionsResponse = zod.array(ListRentlyPaymentCorrectionsResponseItem)
+
+
+/**
  * @summary Download a generated lease draft
  */
 export const DownloadRentlyLeasePdfParams = zod.object({

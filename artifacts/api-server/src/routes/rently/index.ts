@@ -1,5 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
+  CorrectRentlyPaymentBody,
+  CorrectRentlyPaymentParams,
+  CorrectRentlyPaymentResponse,
+  ListRentlyPaymentCorrectionsParams,
+  ListRentlyPaymentCorrectionsResponse,
   CreateRentlyLeaseBody,
   CreateRentlyLeaseResponse,
   CreateRentlyPropertyBody,
@@ -20,7 +25,7 @@ const router: IRouter = Router();
 function statusForDatabaseError(code?: string): number {
   if (code === "P0002" || code === "23503") return 404;
   if (code === "42501") return 403;
-  if (code === "PGRST202" || code === "PGRST204" || code === "42P01" || code === "42703") return 503;
+  if (code === "PGRST202" || code === "PGRST204" || code === "PGRST205" || code === "42P01" || code === "42703") return 503;
   if (code === "23P01" || code === "23505") return 409;
   if (code === "22023" || code === "22P02") return 400;
   return 500;
@@ -258,6 +263,79 @@ router.post(
         paidAt: data.paid_at,
       }),
     );
+  },
+);
+
+router.post(
+  "/rently/payments/:paymentId/corrections",
+  requireRentlyAuth,
+  async (req, res): Promise<void> => {
+    const params = CorrectRentlyPaymentParams.safeParse(req.params);
+    const parsed = CorrectRentlyPaymentBody.safeParse(req.body);
+    if (!params.success || !parsed.success || parsed.data.confirmed !== true || !parsed.data.reason.trim()) {
+      res.status(400).json({ error: "Confirm the correction and provide a valid date and reason." });
+      return;
+    }
+    const { client, userId } = getRentlyContext(res);
+    const { error } = await client.rpc("correct_rently_payment", {
+      p_payment_id: params.data.paymentId,
+      p_paid_at: parsed.data.paidAt,
+      p_expected_paid_at: parsed.data.expectedPaidAt,
+      p_reason: parsed.data.reason.trim(),
+    });
+    if (error) {
+      if (error.code === "23505") {
+        res.status(409).json({ error: "This payment changed or is no longer recorded. Reload the portfolio before correcting it." });
+        return;
+      }
+      failDatabaseRequest(req, res, error.code);
+      return;
+    }
+    const { data, error: loadError } = await client.from("rently_payments")
+      .select("id,due_date,amount,paid_at")
+      .eq("id", params.data.paymentId).eq("owner_id", userId).single();
+    if (loadError) {
+      failDatabaseRequest(req, res, loadError.code);
+      return;
+    }
+    res.json(CorrectRentlyPaymentResponse.parse({
+      id: data.id, dueDate: data.due_date, amount: Number(data.amount), paidAt: data.paid_at,
+    }));
+  },
+);
+
+router.get(
+  "/rently/payments/:paymentId/corrections",
+  requireRentlyAuth,
+  async (req, res): Promise<void> => {
+    const params = ListRentlyPaymentCorrectionsParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid payment id." });
+      return;
+    }
+    const { client, userId } = getRentlyContext(res);
+    const { data: payment, error: paymentError } = await client.from("rently_payments")
+      .select("id").eq("id", params.data.paymentId).eq("owner_id", userId).maybeSingle();
+    if (paymentError) {
+      failDatabaseRequest(req, res, paymentError.code);
+      return;
+    }
+    if (!payment) {
+      res.status(404).json({ error: "The requested record was not found." });
+      return;
+    }
+    const { data, error } = await client.from("rently_payment_corrections")
+      .select("id,payment_id,previous_paid_at,new_paid_at,reason,actor_id,corrected_at")
+      .eq("payment_id", params.data.paymentId).eq("owner_id", userId)
+      .order("corrected_at", { ascending: false }).order("id");
+    if (error) {
+      failDatabaseRequest(req, res, error.code);
+      return;
+    }
+    res.json(ListRentlyPaymentCorrectionsResponse.parse(data.map((row) => ({
+      id: row.id, paymentId: row.payment_id, previousPaidAt: row.previous_paid_at,
+      newPaidAt: row.new_paid_at, reason: row.reason, actorId: row.actor_id, correctedAt: row.corrected_at,
+    }))));
   },
 );
 
