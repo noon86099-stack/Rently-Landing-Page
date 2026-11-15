@@ -150,6 +150,137 @@ async function assertTableIsolation(owner, otherOwnerFixtures, ownFixtures) {
   }
 }
 
+async function readAdminRecord(table, id) {
+  const { data, error } = await admin.from(table).select("*").eq("id", id);
+  if (error)
+    throw new Error(
+      `Could not inspect ${table} fixture ${id}: ${error.message}`,
+    );
+  return data?.[0] ?? null;
+}
+
+function crossOwnerInsertPayload(table, victim, victimFixtures, id, suffix) {
+  const base = { id, owner_id: victim.id };
+  switch (table) {
+    case "rently_properties":
+      return { ...base, name: `Unauthorized property ${suffix}` };
+    case "rently_units":
+      return {
+        ...base,
+        property_id: victimFixtures.rently_properties,
+        unit_label: `Unauthorized unit ${suffix}`,
+      };
+    case "rently_tenants":
+      return {
+        ...base,
+        full_name: `Unauthorized tenant ${suffix}`,
+        email: `unauthorized-${suffix}@example.invalid`,
+      };
+    case "rently_leases":
+      return {
+        ...base,
+        unit_id: victimFixtures.rently_units,
+        tenant_id: victimFixtures.rently_tenants,
+        start_date: "2026-01-01",
+        end_date: "2026-12-31",
+        status: "active",
+      };
+    default:
+      throw new Error(`Unsupported owner-isolation table: ${table}`);
+  }
+}
+
+function crossOwnerUpdatePayload(table) {
+  switch (table) {
+    case "rently_properties":
+      return { name: `Changed by another owner ${randomUUID()}` };
+    case "rently_units":
+      return { unit_label: `Changed by another owner ${randomUUID()}` };
+    case "rently_tenants":
+      return { full_name: `Changed by another owner ${randomUUID()}` };
+    case "rently_leases":
+      return { status: "ended" };
+    default:
+      throw new Error(`Unsupported owner-isolation table: ${table}`);
+  }
+}
+
+async function assertRecordUnchanged(table, id, originalRecord, operation) {
+  const currentRecord = await readAdminRecord(table, id);
+  assert(
+    JSON.stringify(currentRecord) === JSON.stringify(originalRecord),
+    `A cross-owner ${operation} changed or removed ${table} record ${id}.`,
+  );
+}
+
+async function assertCrossOwnerWritesBlocked(attacker, victim, victimFixtures) {
+  for (const table of Object.keys(victimFixtures)) {
+    const victimRecordId = victimFixtures[table];
+    const originalRecord = await readAdminRecord(table, victimRecordId);
+    assert(originalRecord, `Missing ${victim.label}'s ${table} fixture.`);
+
+    const insertedRecordId = randomUUID();
+    // Track the intended id before the request so cleanup can remove it even
+    // if the API commits the insert but its response is lost.
+    createdRows[table].push(insertedRecordId);
+    const { data: insertedRows, error: insertError } = await attacker.client
+      .from(table)
+      .insert(
+        crossOwnerInsertPayload(
+          table,
+          victim,
+          victimFixtures,
+          insertedRecordId,
+          randomUUID(),
+        ),
+      )
+      .select("id");
+    assert(
+      Boolean(insertError) ||
+        !insertedRows?.some((row) => row.id === insertedRecordId),
+      `${attacker.label} inserted a ${table} record for ${victim.label}.`,
+    );
+    assert(
+      (await readAdminRecord(table, insertedRecordId)) === null,
+      `${attacker.label}'s cross-owner insert created a ${table} record.`,
+    );
+
+    const { data: updatedRows, error: updateError } = await attacker.client
+      .from(table)
+      .update(crossOwnerUpdatePayload(table))
+      .eq("id", victimRecordId)
+      .select("id");
+    assert(
+      Boolean(updateError) ||
+        !updatedRows?.some((row) => row.id === victimRecordId),
+      `${attacker.label} updated ${victim.label}'s ${table} record.`,
+    );
+    await assertRecordUnchanged(
+      table,
+      victimRecordId,
+      originalRecord,
+      "update",
+    );
+
+    const { data: deletedRows, error: deleteError } = await attacker.client
+      .from(table)
+      .delete()
+      .eq("id", victimRecordId)
+      .select("id");
+    assert(
+      Boolean(deleteError) ||
+        !deletedRows?.some((row) => row.id === victimRecordId),
+      `${attacker.label} deleted ${victim.label}'s ${table} record.`,
+    );
+    await assertRecordUnchanged(
+      table,
+      victimRecordId,
+      originalRecord,
+      "delete",
+    );
+  }
+}
+
 async function createLeaseDocumentFixture(owner, leaseId) {
   const storagePath = `${owner.id}/${leaseId}/${randomUUID()}.pdf`;
   const fileBytes = new TextEncoder().encode(
@@ -317,6 +448,8 @@ try {
 
   await assertTableIsolation(ownerA, fixturesB, fixturesA);
   await assertTableIsolation(ownerB, fixturesA, fixturesB);
+  await assertCrossOwnerWritesBlocked(ownerA, ownerB, fixturesB);
+  await assertCrossOwnerWritesBlocked(ownerB, ownerA, fixturesA);
   await assertLeaseDocumentIsolation(ownerA, leaseDocumentB, leaseDocumentA);
   await assertLeaseDocumentIsolation(ownerB, leaseDocumentA, leaseDocumentB);
 } catch (error) {
@@ -333,7 +466,7 @@ if (cleanupErrors.length > 0) {
 }
 if (!testFailure && cleanupErrors.length === 0) {
   console.log(
-    "Owner isolation passed: both accounts read their own properties, units, tenants, leases, lease document metadata, and lease document files only. Test data and accounts were removed.",
+    "Owner isolation passed: both accounts read their own records only and could not insert, update, or delete another owner's properties, units, tenants, or leases. Lease documents remained isolated. Test data and accounts were removed.",
   );
 }
 
