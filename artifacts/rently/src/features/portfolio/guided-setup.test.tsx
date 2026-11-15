@@ -92,12 +92,15 @@ test('completion screen confirms the saved file and displays scheduled due dates
     dueDay: 5,
     payments,
     onOpenRecords() {},
+    onGoHome() {},
     onStartAnother() {},
   });
 
   const en = render('en', complete(true));
   assert.match(en, /Setup complete/);
   assert.match(en, /signed file are saved/);
+  assert.match(en, /data-testid="button-go-home"/);
+  assert.match(en, /Go to homepage/);
   assert.match(en, /Monthly due day/);
   assert.match(en, /Generated due dates/);
   assert.match(en, /May 05, 2026/);
@@ -107,6 +110,7 @@ test('completion screen confirms the saved file and displays scheduled due dates
 
   const ar = render('ar', complete(false));
   assert.match(ar, /اكتملت الخطوات/);
+  assert.match(ar, /الصفحة الرئيسية/);
   assert.match(ar, /يمكنك رفع الملف الموقّع لاحقًا/);
   assert.match(ar, /يوم الاستحقاق الشهري/);
   assert.match(ar, /مواعيد الاستحقاق المحفوظة/);

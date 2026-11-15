@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Check, LoaderCircle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Check, Home, LoaderCircle, RotateCcw } from 'lucide-react';
 import type { RentlyLease } from '@workspace/api-client-react';
 import { loadOwnerProperties, loadPropertyDetails } from '@/lib/rently-data';
 import { LeaseDocumentControl, type LeaseDocumentStatus } from '@/features/leases/lease-document-control';
@@ -57,11 +57,12 @@ function LeaseDueSchedule({ dueDay, payments }: {
   );
 }
 
-export function SetupCompletion({ hasDocument, dueDay, payments, onOpenRecords, onStartAnother }: {
+export function SetupCompletion({ hasDocument, dueDay, payments, onOpenRecords, onGoHome, onStartAnother }: {
   hasDocument: boolean;
   dueDay: number;
   payments: RentlyLease['payments'];
   onOpenRecords: () => void;
+  onGoHome: () => void;
   onStartAnother: () => void;
 }) {
   const { t, direction } = useI18n();
@@ -82,6 +83,9 @@ export function SetupCompletion({ hasDocument, dueDay, payments, onOpenRecords, 
       <div className="flex flex-wrap gap-2">
         <button type="button" data-testid="button-open-records" onClick={onOpenRecords} className="inline-flex items-center gap-1.5 bg-[#102238] px-3 py-2 text-[11px] font-semibold text-white">
           {t('View records', 'عرض السجلات')} <ArrowLeft size={12} className="ltr:rotate-180" />
+        </button>
+        <button type="button" data-testid="button-go-home" onClick={onGoHome} className="inline-flex items-center gap-1.5 border border-[#c5d4e0] bg-white px-3 py-2 text-[11px] text-[#315b91]">
+          <Home size={12} /> {t('Go to homepage', 'الصفحة الرئيسية')}
         </button>
         <button type="button" data-testid="button-next-lease" onClick={onStartAnother} className="border border-[#c5d4e0] px-3 py-2 text-[11px] text-[#315b91]">
           {t('Set up another unit', 'إعداد وحدة أخرى')}
@@ -122,11 +126,7 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
   function pickUnit(id: string) { setUnitId(id); setLease(null); setDocumentStatus('loading'); setFinished(false); setNewUnit(false); }
   function restart() { setPropertyId(null); setUnitId(null); setLease(null); setDocumentStatus('loading'); setFinished(false); setNewProperty(false); setNewUnit(false); }
   function startAnotherLease() { setUnitId(null); setLease(null); setDocumentStatus('loading'); setFinished(false); }
-  function finishSetup() {
-    if (!propertyId) return;
-    setFinished(true);
-    onOpenRecords(propertyId);
-  }
+  function finishSetup() { setFinished(true); }
 
   const next = !propertyId ? t('Choose a saved property or add a new one.', 'اختر عقارًا محفوظًا أو أضف عقارًا جديدًا.') : !unitId ? t('Choose or add a unit in this property.', 'اختر وحدة في هذا العقار أو أضف وحدة.') : !lease ? t('Add the tenant and lease for this unit.', 'أضف المستأجر وبيانات العقد لهذه الوحدة.') : documentStatus === 'saved' ? t('The signed file is saved. Finish setup.', 'تم حفظ الملف الموقّع. أنهِ الإعداد.') : t('Upload the signed file, or finish and upload later.', 'ارفع الملف الموقّع أو أنهِ الإعداد وارفعه لاحقًا.');
 
@@ -139,6 +139,7 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
           dueDay={lease.dueDay}
           payments={lease.payments}
           onOpenRecords={() => onOpenRecords(propertyId)}
+          onGoHome={() => document.getElementById('top')?.scrollIntoView({ behavior: 'smooth' })}
           onStartAnother={startAnotherLease}
         />
       ) : (
