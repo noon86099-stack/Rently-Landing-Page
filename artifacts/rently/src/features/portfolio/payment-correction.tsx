@@ -12,7 +12,7 @@ type Props = {
 
 export function PaymentCorrection({ payment, ctx }: Props) {
   const qc = useQueryClient();
-  const { t, direction } = useI18n();
+  const { t, direction, locale } = useI18n();
   const { formatDate, formatDateTime } = useLocalizedFormats();
   const [open, setOpen] = useState(false);
   const [paidAt, setPaidAt] = useState(payment.paid_at ?? '');
@@ -69,7 +69,7 @@ export function PaymentCorrection({ payment, ctx }: Props) {
       <form onSubmit={submit} className="grid gap-2">
         <p className="text-[10px]">{t('Correct paid date:', 'تصحيح تاريخ الدفع:')} <bdi dir={direction}>{formatDate(expectedPaidAt)} → {paidAt ? formatDate(paidAt) : t('Select date', 'اختر التاريخ')}</bdi>. {t('The due date and amount will not change.', 'لن يتغيّر تاريخ الاستحقاق ولا المبلغ.')}</p>
         <label className={labelCls}>{t('New paid date', 'تاريخ الدفع الجديد')}
-          <input type="date" dir="ltr" required max={ctx.today} value={paidAt} disabled={correction.isPending} onChange={(e) => { setPaidAt(e.target.value); setConfirmed(false); }} className={inputCls} />
+          <input type="date" dir={direction} lang={locale} required max={ctx.today} value={paidAt} disabled={correction.isPending} onChange={(e) => { setPaidAt(e.target.value); setConfirmed(false); }} className={inputCls} />
         </label>
         <label className={labelCls}>{t('Reason for correction', 'سبب التصحيح')}
           <textarea dir="auto" required maxLength={1000} value={reason} disabled={correction.isPending} onChange={(e) => { setReason(e.target.value); setConfirmed(false); }} className={inputCls} />

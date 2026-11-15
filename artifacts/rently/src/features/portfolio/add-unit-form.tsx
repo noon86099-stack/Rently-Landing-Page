@@ -31,24 +31,27 @@ export function AddUnitForm({ token, userId, propertyId, onCreated, onSavingChan
       return;
     }
     busy.current = true; setSaving(true); onSavingChange?.(true);
-    let created: RentlyUnit | null = null;
     try {
-      const data = { unitLabel: label.trim() };
-      created = await create.mutateAsync({ propertyId, data: { ...data, requestId: await setupRequestId(userId, 'unit:' + propertyId, data) } });
-    } catch (err) {
-      setError(message(
-        setupErrorMessage(err, 'Could not confirm the unit was saved.', 'en'),
-        setupErrorMessage(err, 'تعذّر تأكيد حفظ الوحدة. حاول مرة أخرى.'),
-      ));
+      let created: RentlyUnit | null = null;
+      try {
+        const data = { unitLabel: label.trim() };
+        created = await create.mutateAsync({ propertyId, data: { ...data, requestId: await setupRequestId(userId, 'unit:' + propertyId, data) } });
+      } catch (err) {
+        setError(message(
+          setupErrorMessage(err, 'Could not confirm the unit was saved.', 'en'),
+          setupErrorMessage(err, 'تعذّر تأكيد حفظ الوحدة. حاول مرة أخرى.'),
+        ));
+      }
+      if (created) {
+        cacheSavedUnit(qc, userId, created);
+        try { await invalidatePortfolio(qc, userId, propertyId); } catch { /* saved; refresh can retry later */ }
+        setSuccess(message(`Unit "${created.unitLabel}" saved. Next: tenant and lease.`, `تم حفظ الوحدة «${created.unitLabel}». الخطوة التالية: إضافة المستأجر والعقد.`));
+        setLabel('');
+        onCreated?.(created.id);
+      }
+    } finally {
+      busy.current = false; setSaving(false); onSavingChange?.(false);
     }
-    if (created) {
-      cacheSavedUnit(qc, userId, created);
-      try { await invalidatePortfolio(qc, userId, propertyId); } catch { /* saved; refresh can retry later */ }
-      setSuccess(message(`Unit "${created.unitLabel}" saved. Next: tenant and lease.`, `تم حفظ الوحدة «${created.unitLabel}». الخطوة التالية: إضافة المستأجر والعقد.`));
-      setLabel('');
-      onCreated?.(created.id);
-    }
-    busy.current = false; setSaving(false); onSavingChange?.(false);
   }
 
   return (

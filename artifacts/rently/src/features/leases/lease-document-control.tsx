@@ -17,6 +17,8 @@ type LeaseDocument = {
   created_at: string;
 };
 
+export type LeaseDocumentStatus = 'loading' | 'saved' | 'missing' | 'uploading' | 'error';
+
 class LocalizedError extends Error {
   constructor(readonly ui: LocalizedText) {
     super(ui.en);
@@ -32,7 +34,10 @@ function errorMessage(error: unknown): UiMessage {
 const notConfigured = message('The Supabase connection is not fully set up.', 'إعداد اتصال Supabase غير مكتمل.');
 const savedNotice = message('The file for this lease was saved.', 'تم حفظ ملف العقد الخاص بهذا العقد.');
 
-export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
+export function LeaseDocumentControl({ leaseId, onStatusChange }: {
+  leaseId: string;
+  onStatusChange?: (status: LeaseDocumentStatus) => void;
+}) {
   const { t, text } = useI18n();
   const { formatDateTime } = useLocalizedFormats();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -48,9 +53,11 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
     async function loadDocument() {
       setLoading(true);
       setError('');
+      onStatusChange?.('loading');
       if (!supabase) {
         setError(notConfigured);
         setLoading(false);
+        onStatusChange?.('error');
         return;
       }
       try {
@@ -62,9 +69,15 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
           .eq('lease_id', leaseId)
           .maybeSingle();
         if (queryError) throw queryError;
-        if (active) setDocument(data as LeaseDocument | null);
+        if (active) {
+          setDocument(data as LeaseDocument | null);
+          onStatusChange?.(data ? 'saved' : 'missing');
+        }
       } catch (loadError) {
-        if (active) setError(errorMessage(loadError));
+        if (active) {
+          setError(errorMessage(loadError));
+          onStatusChange?.('error');
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -73,7 +86,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
     return () => {
       active = false;
     };
-  }, [leaseId]);
+  }, [leaseId, onStatusChange]);
 
   async function upload(file: File) {
     setError('');
@@ -97,6 +110,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
     }
 
     setUploading(true);
+    onStatusChange?.('uploading');
     let newPath: string | undefined;
     try {
       const { data: authData, error: authError } =
@@ -153,6 +167,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
       if (saveError) throw saveError;
 
       setDocument(data as LeaseDocument);
+      onStatusChange?.('saved');
       if (previous?.storage_path && previous.storage_path !== newPath) {
         const { error: removeError } = await supabase.storage
           .from(BUCKET)
@@ -178,6 +193,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
           `${resolveMessage(base, 'ar')} تعذر تنظيف الملف غير المرتبط؛ لم يتم حفظه كعقد.`,
         )
         : base);
+      onStatusChange?.(document ? 'saved' : 'missing');
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';

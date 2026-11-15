@@ -19,7 +19,7 @@ function statusOf(p: Payment, today: string) {
 
 function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
   const qc = useQueryClient();
-  const { t, text, direction } = useI18n();
+  const { t, text, direction, locale } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
   const [paidAt, setPaidAt] = useState(ctx.today);
   const [error, setError] = useState<UiMessage>('');
@@ -49,7 +49,7 @@ function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
       ) : (
         <form onSubmit={submit} noValidate className="grid gap-1">
           <div className="flex gap-1">
-            <input data-testid={`input-paid-at-${payment.id}`} aria-label={t('Paid date', 'تاريخ الدفع')} dir="ltr" type="date" max={ctx.today} value={paidAt} aria-invalid={!!error} onChange={(e) => setPaidAt(e.target.value)} className={`${inputCls} min-h-7 text-[11px]`} />
+            <input data-testid={`input-paid-at-${payment.id}`} aria-label={t('Paid date', 'تاريخ الدفع')} dir={direction} lang={locale} type="date" max={ctx.today} value={paidAt} aria-invalid={!!error} onChange={(e) => setPaidAt(e.target.value)} className={`${inputCls} min-h-7 text-[11px]`} />
             <button data-testid={`button-record-payment-${payment.id}`} disabled={record.isPending} className={ghostBtn}>{record.isPending && <LoaderCircle size={10} className="animate-spin" />}{t('Record', 'تسجيل')}</button>
           </div>
           <FormNotice error={error} />

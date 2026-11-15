@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { LoaderCircle } from 'lucide-react';
+import { CalendarDays, LoaderCircle } from 'lucide-react';
 import { useCreateRentlyLease, type RentlyLease } from '@workspace/api-client-react';
 import type { Unit } from '@/lib/rently-data';
 import { message, useI18n, type UiMessage } from '@/lib/i18n';
@@ -9,6 +9,131 @@ import { setupErrorMessage, setupRequestId } from './setup-request';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type DateParts = { day: string; month: string; year: string };
+type DatePart = keyof DateParts;
+
+function datePartsFromIso(value: string): DateParts {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? { year: match[1], month: match[2], day: match[3] } : { day: '', month: '', year: '' };
+}
+
+function normalizeDateDigits(value: string) {
+  return value
+    .replace(/[٠-٩۰-۹]/g, (digit) => {
+      const code = digit.charCodeAt(0);
+      return String(code - (code >= 0x06f0 ? 0x06f0 : 0x0660));
+    })
+    .replace(/\D/g, '');
+}
+
+function isoFromDateParts(parts: DateParts) {
+  if (!/^\d{1,2}$/.test(parts.day) || !/^\d{1,2}$/.test(parts.month) || !/^\d{4}$/.test(parts.year)) return '';
+  const day = Number(parts.day);
+  const month = Number(parts.month);
+  const year = Number(parts.year);
+  if (year < 1000 || month < 1 || month > 12 || day < 1 || day > 31) return '';
+  const iso = `${parts.year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const parsed = new Date(`${iso}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso ? '' : iso;
+}
+
+function DatePartsInput({ testId, value, min, invalid, label, onChange }: {
+  testId: string;
+  value: string;
+  min?: string;
+  invalid: boolean;
+  label: string;
+  onChange: (value: string) => void;
+}) {
+  const { t, direction } = useI18n();
+  const [parts, setParts] = useState(() => datePartsFromIso(value));
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const lastValue = useRef(value);
+
+  useEffect(() => {
+    if (value !== lastValue.current) {
+      lastValue.current = value;
+      setParts(datePartsFromIso(value));
+    }
+  }, [value]);
+
+  function updatePart(part: DatePart, input: string) {
+    const maxLength = part === 'year' ? 4 : 2;
+    const next = { ...parts, [part]: normalizeDateDigits(input).slice(0, maxLength) };
+    const iso = isoFromDateParts(next);
+    if (iso) {
+      const normalized = datePartsFromIso(iso);
+      setParts(normalized);
+      lastValue.current = iso;
+      onChange(iso);
+    } else {
+      setParts(next);
+      lastValue.current = '';
+      onChange('');
+    }
+  }
+
+  function selectFromCalendar(nextValue: string) {
+    lastValue.current = nextValue;
+    setParts(datePartsFromIso(nextValue));
+    onChange(nextValue);
+  }
+
+  return (
+    <div role="group" aria-label={label} aria-invalid={invalid} dir={direction} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.25fr)_36px] items-end gap-1.5">
+      {([
+        ['day', t('Day', 'اليوم'), 2],
+        ['month', t('Month', 'الشهر'), 2],
+        ['year', t('Year', 'السنة'), 4],
+      ] as const).map(([part, partLabel, maxLength]) => (
+        <label key={part} className="grid min-w-0 gap-1 text-[9px] normal-case tracking-normal text-[#667b8e]">
+          <span>{partLabel}</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
+            autoComplete="off"
+            aria-label={partLabel}
+            aria-invalid={invalid}
+            data-testid={`${testId}-${part}`}
+            maxLength={maxLength}
+            placeholder={part === 'day' ? 'DD' : part === 'month' ? 'MM' : 'YYYY'}
+            value={parts[part]}
+            onChange={(event) => updatePart(part, event.target.value)}
+            className={`${inputCls} min-h-9 px-1.5 text-center tabular-nums`}
+          />
+        </label>
+      ))}
+      <button
+        type="button"
+        aria-label={t('Choose date from calendar', 'اختر التاريخ من التقويم')}
+        onClick={() => {
+          const picker = pickerRef.current;
+          if (!picker) return;
+          if (typeof picker.showPicker === 'function') picker.showPicker();
+          else picker.click();
+        }}
+        className="grid h-9 w-9 place-items-center border border-[#cbd7e1] bg-white text-[#315b91] hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
+      >
+        <CalendarDays size={14} />
+      </button>
+      <input
+        ref={pickerRef}
+        type="date"
+        tabIndex={-1}
+        aria-hidden="true"
+        data-testid={`${testId}-picker`}
+        className="sr-only"
+        dir="ltr"
+        lang="en-GB"
+        value={value}
+        min={min}
+        onChange={(event) => selectFromCalendar(event.target.value)}
+      />
+    </div>
+  );
+}
 
 export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitId, defaultUnitLabel, onCreated, onSavingChange }: {
   token: string; userId: string; propertyId: string; units: Unit[]; initialUnitId?: string; defaultUnitLabel?: string; onCreated?: (leaseId: string, lease: RentlyLease) => void; onSavingChange?: (saving: boolean) => void;
@@ -58,9 +183,10 @@ export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitI
     setTouched(true); setError(''); setSuccess('');
     if (Object.values(errs).some(Boolean)) return;
     busy.current = true; setSaving(true); onSavingChange?.(true);
-    let lease: RentlyLease | null = null;
     try {
-      const data = {
+      let lease: RentlyLease | null = null;
+      try {
+        const data = {
           unitId: effectiveUnit,
           tenantFullName: fullName.trim(),
           tenantEmail: email.trim() || null,
@@ -68,21 +194,23 @@ export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitI
           startDate, endDate,
           monthlyRent: Math.round(rentNum * 100) / 100,
           dueDay: dayNum,
-      };
-      lease = await create.mutateAsync({ data: { ...data, requestId: await setupRequestId(userId, 'lease', data) } });
-    } catch (err) {
-      setError(message(
-        setupErrorMessage(err, 'Could not confirm the lease was saved.', 'en'),
-        setupErrorMessage(err, 'تعذّر تأكيد حفظ العقد. حاول مرة أخرى.'),
-      ));
+        };
+        lease = await create.mutateAsync({ data: { ...data, requestId: await setupRequestId(userId, 'lease', data) } });
+      } catch (err) {
+        setError(message(
+          setupErrorMessage(err, 'Could not confirm the lease was saved.', 'en'),
+          setupErrorMessage(err, 'تعذّر تأكيد حفظ العقد. حاول مرة أخرى.'),
+        ));
+      }
+      if (lease) {
+        try { await invalidatePortfolio(qc, userId, propertyId); } catch { /* saved; refresh can retry later */ }
+        setSuccess(message(`Lease saved for ${lease.tenant.fullName}. ${lease.payments.length} dues generated.`, `تم حفظ عقد ${lease.tenant.fullName}. أُنشئت ${lease.payments.length} مستحقات شهرية.`));
+        setFullName(''); setEmail(''); setPhone(''); setStartDate(''); setEndDate(''); setRent(''); setDueDay('1'); setDueTouched(false); setTouched(false);
+        onCreated?.(lease.id, lease);
+      }
+    } finally {
+      busy.current = false; setSaving(false); onSavingChange?.(false);
     }
-    if (lease) {
-      try { await invalidatePortfolio(qc, userId, propertyId); } catch { /* saved; refresh can retry later */ }
-      setSuccess(message(`Lease saved for ${lease.tenant.fullName}. ${lease.payments.length} dues generated.`, `تم حفظ عقد ${lease.tenant.fullName}. أُنشئت ${lease.payments.length} مستحقات شهرية.`));
-      setFullName(''); setEmail(''); setPhone(''); setStartDate(''); setEndDate(''); setRent(''); setDueDay('1'); setDueTouched(false); setTouched(false);
-      onCreated?.(lease.id, lease);
-    }
-    busy.current = false; setSaving(false); onSavingChange?.(false);
   }
 
   if (units.length === 0) return <p className="text-[11px] leading-5 text-[#718398]">{t('Save a unit first using the guided setup.', 'احفظ وحدة أولًا من الإعداد الموجّه.')} <a href="#setup" className="text-[#315b91] underline">{t('Open guided setup', 'فتح الإعداد الموجّه')}</a></p>;
@@ -94,8 +222,16 @@ export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitI
         <label className={labelCls}>{t('Tenant name', 'اسم المستأجر')} *<input dir="auto" data-testid="input-tenant-name" value={fullName} maxLength={160} aria-invalid={touched && !!errs.name} onChange={(e) => setFullName(e.target.value)} className={inputCls} />{show('name')}</label>
         <label className={labelCls}>{t('Email', 'البريد الإلكتروني')}<input dir="ltr" data-testid="input-tenant-email" type="email" value={email} aria-invalid={touched && !!errs.email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />{show('email')}</label>
         <label className={labelCls}>{t('Phone', 'الهاتف')}<input dir="ltr" data-testid="input-tenant-phone" type="tel" value={phone} maxLength={80} onChange={(e) => setPhone(e.target.value)} className={inputCls} /></label>
-        <label className={labelCls}>{t('Start', 'البداية')} *<input dir="ltr" data-testid="input-lease-start" type="date" value={startDate} aria-invalid={touched && !!errs.start} onChange={(e) => onStart(e.target.value)} className={inputCls} />{show('start')}</label>
-        <label className={labelCls}>{t('End', 'النهاية')} *<input dir="ltr" data-testid="input-lease-end" type="date" value={endDate} min={startDate || undefined} aria-invalid={touched && !!errs.end} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />{show('end')}</label>
+        <div className={labelCls}>
+          <span>{t('Start date', 'تاريخ البداية')} *</span>
+          <DatePartsInput testId="input-lease-start" label={t('Start date', 'تاريخ البداية')} value={startDate} invalid={touched && !!errs.start} onChange={onStart} />
+          {show('start')}
+        </div>
+        <div className={labelCls}>
+          <span>{t('End date', 'تاريخ النهاية')} *</span>
+          <DatePartsInput testId="input-lease-end" label={t('End date', 'تاريخ النهاية')} value={endDate} min={startDate || undefined} invalid={touched && !!errs.end} onChange={setEndDate} />
+          {show('end')}
+        </div>
         <label className={labelCls}>{t('Monthly rent', 'الإيجار الشهري')} *<input dir="ltr" data-testid="input-lease-rent" type="number" inputMode="decimal" min="0.01" step="0.01" value={rent} aria-invalid={touched && !!errs.rent} onChange={(e) => setRent(e.target.value)} className={inputCls} />{show('rent')}</label>
         <label className={labelCls}>{t('Due day', 'يوم الاستحقاق')} *<input dir="ltr" data-testid="input-lease-due-day" type="number" min={1} max={31} step={1} value={dueDay} aria-invalid={touched && !!errs.due} onChange={(e) => { setDueDay(e.target.value); setDueTouched(true); }} className={inputCls} />{show('due')}<span className="normal-case tracking-normal text-[#8192a3]">{t('Days 29-31 clamp to month end.', 'الأيام 29-31 تُضبط على آخر الشهر.')}</span></label>
       </fieldset>

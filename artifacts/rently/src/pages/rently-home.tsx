@@ -244,22 +244,25 @@ export function RentlyHomepage() {
 
   return (
     <main id="top" className="min-h-[100dvh] overflow-hidden bg-[#e9eef3] text-[#102238]">
-      <header className="relative z-10 mx-auto flex max-w-[1440px] items-center justify-between gap-3 border-b border-[#d1dbe4] px-5 py-4 md:px-12 lg:px-[7.4%]">
-        <Wordmark />
+      <header className="relative z-10 mx-auto flex max-w-[1440px] items-center justify-between gap-2 border-b border-[#d1dbe4] px-2 py-3 sm:gap-3 sm:px-5 sm:py-4 md:px-12 lg:px-[7.4%]">
+        <Wordmark compact />
         {!user && <nav className="hidden items-center gap-8 font-mono text-[10px] uppercase tracking-[.08em] text-[#53677c] md:flex" aria-label={t('Main navigation', 'التنقل الرئيسي')}>
           <a href="#portfolio" className="transition-colors hover:text-[#102238]">{t('Portfolio', 'المحفظة')}</a>
           <a href="#records" className="transition-colors hover:text-[#102238]">{t('Rental records', 'سجلات الإيجار')}</a>
           <a href="#owners" className="transition-colors hover:text-[#102238]">{t('For owners', 'للملاك')}</a>
         </nav>}
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
           <LanguageSwitcher />
           {user ? (
-            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
               <span dir="ltr" className="hidden truncate font-mono text-[9px] text-[#61758a] sm:inline">{user.email}</span>
-              <button type="button" onClick={() => void signOut()} className="shrink-0 whitespace-nowrap rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white">{t('Sign out', 'تسجيل الخروج')}</button>
+              <button type="button" aria-label={t('Sign out', 'تسجيل الخروج')} onClick={() => void signOut()} className="shrink-0 whitespace-nowrap rounded-sm bg-[#102238] px-2 py-2 font-mono text-[8px] uppercase tracking-[.04em] text-white sm:px-3 sm:py-2.5 sm:text-[9px] sm:tracking-[.06em]">
+                <span className="sm:hidden">{t('Exit', 'خروج')}</span>
+                <span className="hidden sm:inline">{t('Sign out', 'تسجيل الخروج')}</span>
+              </button>
             </div>
           ) : (
-            <a href="#portfolio" className="shrink-0 whitespace-nowrap rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white sm:px-4">{t('Owner sign in', 'دخول المالك')}</a>
+            <a href="#portfolio" className="hidden shrink-0 whitespace-nowrap rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white sm:inline-flex sm:px-4">{t('Owner sign in', 'دخول المالك')}</a>
           )}
         </div>
       </header>

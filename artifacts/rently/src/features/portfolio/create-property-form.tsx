@@ -47,25 +47,28 @@ export function CreatePropertyForm({ token, userId, onCreated, embedded = false,
     setSuccess('');
     if (nameErr || typeErr) return;
     busy.current = true; setSaving(true); onSavingChange?.(true);
-    let created: RentlyProperty | null = null;
     try {
-      const data = { name: name.trim(), propertyType: type.trim(), streetAddress: street.trim() || null, city: city.trim() || null, region: region.trim() || null };
-      created = await create.mutateAsync({ data: { ...data, requestId: await setupRequestId(userId, 'property', data) } });
-    } catch (err) {
-      setError(message(
-        setupErrorMessage(err, 'Could not confirm the property was saved.', 'en'),
-        setupErrorMessage(err, 'تعذّر تأكيد حفظ العقار. حاول مرة أخرى.'),
-      ));
+      let created: RentlyProperty | null = null;
+      try {
+        const data = { name: name.trim(), propertyType: type.trim(), streetAddress: street.trim() || null, city: city.trim() || null, region: region.trim() || null };
+        created = await create.mutateAsync({ data: { ...data, requestId: await setupRequestId(userId, 'property', data) } });
+      } catch (err) {
+        setError(message(
+          setupErrorMessage(err, 'Could not confirm the property was saved.', 'en'),
+          setupErrorMessage(err, 'تعذّر تأكيد حفظ العقار. حاول مرة أخرى.'),
+        ));
+      }
+      if (created) {
+        cacheSavedProperty(qc, userId, created);
+        try { await invalidatePortfolio(qc, userId, created.id); } catch { /* saved; refresh can retry later */ }
+        setSuccess(message(`Property "${created.name}" saved.`, `تم حفظ العقار «${created.name}».`));
+        setName(''); setStreet(''); setCity(''); setRegion(''); setTouched(false);
+        if (!embedded) setOpen(false);
+        onCreated(created.id);
+      }
+    } finally {
+      busy.current = false; setSaving(false); onSavingChange?.(false);
     }
-    if (created) {
-      cacheSavedProperty(qc, userId, created);
-      try { await invalidatePortfolio(qc, userId, created.id); } catch { /* saved; refresh can retry later */ }
-      setSuccess(message(`Property "${created.name}" saved.`, `تم حفظ العقار «${created.name}».`));
-      setName(''); setStreet(''); setCity(''); setRegion(''); setTouched(false);
-      if (!embedded) setOpen(false);
-      onCreated(created.id);
-    }
-    busy.current = false; setSaving(false); onSavingChange?.(false);
   }
 
   if (!open) {

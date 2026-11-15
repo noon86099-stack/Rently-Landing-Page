@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/lib/i18n';
-import { GuidedSetup } from './guided-setup';
+import { GuidedSetup, SetupCompletion } from './guided-setup';
 import { AddUnitForm } from './add-unit-form';
 import { CreateLeaseForm } from './create-lease-form';
 import { PROPERTY_TYPE_LABELS } from './create-property-form';
@@ -27,6 +27,12 @@ function render(language: 'ar' | 'en', child: React.ReactNode) {
       children: createElement(QueryClientProvider, { client, children: child }),
     }));
   } finally { client.clear(); }
+}
+
+function inputTag(markup: string, testId: string) {
+  const tag = markup.match(new RegExp(`<input\\b[^>]*data-testid="${testId}"[^>]*>`))?.[0];
+  assert.ok(tag, `Expected input ${testId} to render.`);
+  return tag;
 }
 
 test('guided setup and its property form follow the chosen language and direction', () => {
@@ -52,9 +58,57 @@ test('unit and lease forms retain both languages after merging retry protection'
   });
   assert.match(render('en', unit), /Save unit/);
   assert.match(render('ar', unit), /حفظ الوحدة/);
-  assert.match(render('en', lease), /Save tenant and lease/);
-  assert.match(render('ar', lease), /حفظ المستأجر والعقد/);
-  assert.match(render('ar', lease), /User supplied name/);
+  const enLease = render('en', lease);
+  const arLease = render('ar', lease);
+  assert.match(enLease, /Save tenant and lease/);
+  assert.match(arLease, /حفظ المستأجر والعقد/);
+  const enStartDay = inputTag(enLease, 'input-lease-start-day');
+  const arStartDay = inputTag(arLease, 'input-lease-start-day');
+  assert.match(enStartDay, /aria-label="Day"/);
+  assert.match(enStartDay, /dir="ltr"/);
+  assert.match(arStartDay, /aria-label="اليوم"/);
+  assert.match(arStartDay, /dir="ltr"/);
+  assert.match(enLease, /placeholder="DD"/);
+  assert.match(enLease, /placeholder="MM"/);
+  assert.match(enLease, /placeholder="YYYY"/);
+  assert.match(arLease, /اليوم.*الشهر.*السنة/s);
+  assert.match(arLease, /اختر التاريخ من التقويم/);
+  assert.doesNotMatch(inputTag(arLease, 'input-tenant-name'), /\sdisabled(?:="")?(?:\s|>)/);
+  assert.doesNotMatch(arStartDay, /\sdisabled(?:="")?(?:\s|>)/);
+  assert.match(arLease, /User supplied name/);
+});
+
+test('completion screen confirms the saved file and displays scheduled due dates', () => {
+  const payments = [
+    { id: 'due-june', dueDate: '2026-06-05', amount: 1200, paidAt: null },
+    { id: 'due-may', dueDate: '2026-05-05', amount: 1200, paidAt: null },
+    { id: 'due-july', dueDate: '2026-07-05', amount: 1200, paidAt: null },
+    { id: 'due-august', dueDate: '2026-08-05', amount: 1200, paidAt: null },
+  ];
+  const complete = (hasDocument: boolean) => createElement(SetupCompletion, {
+    hasDocument,
+    dueDay: 5,
+    payments,
+    onOpenRecords() {},
+    onStartAnother() {},
+  });
+
+  const en = render('en', complete(true));
+  assert.match(en, /Setup complete/);
+  assert.match(en, /signed file are saved/);
+  assert.match(en, /Monthly due day/);
+  assert.match(en, /Generated due dates/);
+  assert.match(en, /May 05, 2026/);
+  assert.match(en, /Jun 05, 2026/);
+  assert.match(en, /\+1 more/);
+  assert.ok(en.indexOf('May 05, 2026') < en.indexOf('Jun 05, 2026'));
+
+  const ar = render('ar', complete(false));
+  assert.match(ar, /اكتملت الخطوات/);
+  assert.match(ar, /يمكنك رفع الملف الموقّع لاحقًا/);
+  assert.match(ar, /يوم الاستحقاق الشهري/);
+  assert.match(ar, /مواعيد الاستحقاق المحفوظة/);
+  assert.match(ar, /05 مايو 2026/);
 });
 
 test('safe retry errors are available in both languages without leaking upstream details', () => {

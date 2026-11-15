@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Check, LoaderCircle, RotateCcw } from 'lucide-react';
 import type { RentlyLease } from '@workspace/api-client-react';
 import { loadOwnerProperties, loadPropertyDetails } from '@/lib/rently-data';
+import { LeaseDocumentControl, type LeaseDocumentStatus } from '@/features/leases/lease-document-control';
 import { CreatePropertyForm } from './create-property-form';
 import { AddUnitForm } from './add-unit-form';
 import { CreateLeaseForm } from './create-lease-form';
@@ -23,6 +24,73 @@ function StepHead({ n, title, state, saved }: { n: string; title: string; state:
   );
 }
 
+function LeaseDueSchedule({ dueDay, payments }: {
+  dueDay: number;
+  payments: RentlyLease['payments'];
+}) {
+  const { t, direction } = useI18n();
+  const { formatDate } = useLocalizedFormats();
+  const dueDates = [...payments].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  return (
+    <div data-testid="lease-due-schedule" className="mt-3 grid gap-1.5 border-t border-[#dce3e9] pt-2 text-[11px]">
+      <p className="flex items-center gap-2">
+        <span className="text-[#667b8e]">{t('Monthly due day', 'يوم الاستحقاق الشهري')}</span>
+        <bdi data-testid="text-lease-due-day" dir="ltr" className="font-mono font-semibold">{dueDay}</bdi>
+      </p>
+      <div>
+        <p className="mb-1 text-[#667b8e]">{t('Generated due dates', 'مواعيد الاستحقاق المحفوظة')}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {dueDates.slice(0, 3).map((payment) => (
+            <span key={payment.id} dir={direction} className="border border-[#cbd8e2] bg-white px-2 py-1 font-mono text-[10px]">
+              {formatDate(payment.dueDate)}
+            </span>
+          ))}
+          {dueDates.length > 3 && (
+            <span className="px-1 py-1 text-[10px] text-[#667b8e]">
+              +{dueDates.length - 3} {t('more', 'مواعيد أخرى')}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SetupCompletion({ hasDocument, dueDay, payments, onOpenRecords, onStartAnother }: {
+  hasDocument: boolean;
+  dueDay: number;
+  payments: RentlyLease['payments'];
+  onOpenRecords: () => void;
+  onStartAnother: () => void;
+}) {
+  const { t, direction } = useI18n();
+  return (
+    <section data-testid="card-setup-complete" dir={direction} className="grid gap-3 bg-[#f3f9ec] p-4">
+      <div className="flex items-start gap-2">
+        <span className="grid h-7 w-7 shrink-0 place-items-center bg-[#b5f06b] text-[#102238]"><Check size={15} /></span>
+        <div>
+          <p role="status" className="text-[13px] font-semibold">{t('Setup complete', 'اكتملت الخطوات')}</p>
+          <p className="mt-1 text-[11px] text-[#536c83]">
+            {hasDocument
+              ? t('The lease and its signed file are saved.', 'تم حفظ العقد وملفه الموقّع.')
+              : t('The lease is saved. You can upload the signed file later from the lease record.', 'تم حفظ العقد. يمكنك رفع الملف الموقّع لاحقًا من سجل الإيجار.')}
+          </p>
+        </div>
+      </div>
+      <LeaseDueSchedule dueDay={dueDay} payments={payments} />
+      <div className="flex flex-wrap gap-2">
+        <button type="button" data-testid="button-open-records" onClick={onOpenRecords} className="inline-flex items-center gap-1.5 bg-[#102238] px-3 py-2 text-[11px] font-semibold text-white">
+          {t('View records', 'عرض السجلات')} <ArrowLeft size={12} className="ltr:rotate-180" />
+        </button>
+        <button type="button" data-testid="button-next-lease" onClick={onStartAnother} className="border border-[#c5d4e0] px-3 py-2 text-[11px] text-[#315b91]">
+          {t('Set up another unit', 'إعداد وحدة أخرى')}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
   const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
@@ -31,6 +99,8 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
   const [newProperty, setNewProperty] = useState(false);
   const [newUnit, setNewUnit] = useState(false);
   const [lease, setLease] = useState<RentlyLease | null>(null);
+  const [documentStatus, setDocumentStatus] = useState<LeaseDocumentStatus>('loading');
+  const [finished, setFinished] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const props = useQuery({ queryKey: ['rently-properties', userId], queryFn: () => loadOwnerProperties(userId), staleTime: 0 });
@@ -48,15 +118,31 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
   const units = details.data?.units ?? [];
   const showUnitForm = newUnit || (details.isSuccess && units.length === 0);
 
-  function pickProperty(id: string) { setPropertyId(id); setUnitId(null); setLease(null); setNewProperty(false); setNewUnit(false); }
-  function pickUnit(id: string) { setUnitId(id); setLease(null); setNewUnit(false); }
-  function restart() { setPropertyId(null); setUnitId(null); setLease(null); setNewProperty(false); setNewUnit(false); }
+  function pickProperty(id: string) { setPropertyId(id); setUnitId(null); setLease(null); setDocumentStatus('loading'); setFinished(false); setNewProperty(false); setNewUnit(false); }
+  function pickUnit(id: string) { setUnitId(id); setLease(null); setDocumentStatus('loading'); setFinished(false); setNewUnit(false); }
+  function restart() { setPropertyId(null); setUnitId(null); setLease(null); setDocumentStatus('loading'); setFinished(false); setNewProperty(false); setNewUnit(false); }
+  function startAnotherLease() { setUnitId(null); setLease(null); setDocumentStatus('loading'); setFinished(false); }
+  function finishSetup() {
+    if (!propertyId) return;
+    setFinished(true);
+    onOpenRecords(propertyId);
+  }
 
-  const next = !propertyId ? t('Choose a saved property or add a new one.', 'اختر عقارًا محفوظًا أو أضف عقارًا جديدًا.') : !unitId ? t('Choose or add a unit in this property.', 'اختر وحدة في هذا العقار أو أضف وحدة.') : !lease ? t('Add the tenant and lease for this unit.', 'أضف المستأجر وبيانات العقد لهذه الوحدة.') : t('Setup complete. Review the records and record rent when received.', 'اكتمل الإعداد. راجع السجلات وسجّل الإيجار عند استلامه.');
+  const next = !propertyId ? t('Choose a saved property or add a new one.', 'اختر عقارًا محفوظًا أو أضف عقارًا جديدًا.') : !unitId ? t('Choose or add a unit in this property.', 'اختر وحدة في هذا العقار أو أضف وحدة.') : !lease ? t('Add the tenant and lease for this unit.', 'أضف المستأجر وبيانات العقد لهذه الوحدة.') : documentStatus === 'saved' ? t('The signed file is saved. Finish setup.', 'تم حفظ الملف الموقّع. أنهِ الإعداد.') : t('Upload the signed file, or finish and upload later.', 'ارفع الملف الموقّع أو أنهِ الإعداد وارفعه لاحقًا.');
 
   return (
     <section dir={direction} id="setup" data-testid="section-guided-setup" className="mt-3 border border-[#3f7cff]/40 bg-[#f8fafb] text-start">
       <fieldset disabled={saving} aria-busy={saving} className="min-w-0">
+      {finished && lease && propertyId ? (
+        <SetupCompletion
+          hasDocument={documentStatus === 'saved'}
+          dueDay={lease.dueDay}
+          payments={lease.payments}
+          onOpenRecords={() => onOpenRecords(propertyId)}
+          onStartAnother={startAnotherLease}
+        />
+      ) : (
+      <>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#d8e1e8] bg-[#102238] px-3 py-2.5 text-[#f0f5f8] md:px-4">
         <div>
           <p className="text-[14px] font-semibold">{t('Guided setup: property → unit → tenant and lease', 'إعداد موجّه: عقار ← وحدة ← مستأجر وعقد')}</p>
@@ -141,11 +227,11 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
               {details.data.rentSetupRequired ? (
                 <p role="alert" className="border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">{t('Apply the database update before adding a lease. Existing records remain available.', 'إدارة الإيجار تحتاج إلى تحديث قاعدة البيانات قبل إضافة عقد. سجلاتك الحالية ما زالت متاحة.')}</p>
               ) : (
-                <CreateLeaseForm key={unit.id} token={token} userId={userId} propertyId={propertyId} units={[unit]} initialUnitId={unit.id} onCreated={(_id, l) => setLease(l)} onSavingChange={setSaving} />
+              <CreateLeaseForm key={unit.id} token={token} userId={userId} propertyId={propertyId} units={[unit]} initialUnitId={unit.id} onCreated={(_id, l) => { setDocumentStatus('loading'); setFinished(false); setLease(l); }} onSavingChange={setSaving} />
               )}
             </div>
           )}
-          {lease && propertyId && (
+            {lease && propertyId && (
             <div data-testid="card-lease-summary" className="mt-3 border border-[#cfe0bb] bg-[#f3f9ec] p-3">
               <p className="text-[12px] font-semibold text-[#3d6324]">{t('The lease was saved in your records.', 'تم حفظ العقد في سجلاتك.')}</p>
               <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] sm:grid-cols-4">
@@ -154,15 +240,48 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
                 <div><dt className="text-[#667b8e]">{t('Monthly rent', 'الإيجار الشهري')}</dt><dd className="font-semibold">{formatMoney(lease.monthlyRent)} ({t('day', 'يوم')} {lease.dueDay})</dd></div>
                 <div><dt className="text-[#667b8e]">{t('Dues', 'المستحقات')}</dt><dd className="font-semibold">{lease.payments.length} {t('monthly payments', 'دفعة شهرية')}</dd></div>
               </dl>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" data-testid="button-open-records" onClick={() => onOpenRecords(propertyId)} className="inline-flex items-center gap-1.5 bg-[#102238] px-3 py-2 text-[11px] font-semibold text-white">{t('View records and manage lease', 'عرض السجلات وإدارة العقد')} <ArrowLeft size={12} className="ltr:rotate-180" /></button>
-                <button type="button" onClick={() => { setUnitId(null); setLease(null); }} className="border border-[#c5d4e0] px-3 py-2 text-[11px] text-[#315b91]">{t('Lease for another unit', 'عقد لوحدة أخرى')}</button>
-              </div>
+              <LeaseDueSchedule dueDay={lease.dueDay} payments={lease.payments} />
             </div>
           )}
           {details.isFetching && propertyId && <span className="sr-only"><LoaderCircle /></span>}
         </div>
       </div>
+      {lease && !finished && (
+        <div data-testid="step-contract-upload" className="grid gap-3 border-t border-[#dce3e9] p-3 md:p-4">
+          <StepHead
+            n="4"
+            title={t('Upload signed lease', 'رفع العقد الموقّع')}
+            state={documentStatus === 'saved' ? 'done' : 'active'}
+            saved={documentStatus === 'saved' ? t('File saved', 'تم رفع الملف') : undefined}
+          />
+          <p className="text-[11px] text-[#667b8e]">{t('Upload the signed PDF to finish. You can also finish now and upload it later.', 'ارفع ملف PDF الموقّع لإنهاء الخطوات، أو أنهِ الآن وارفعه لاحقًا.')}</p>
+          <LeaseDocumentControl leaseId={lease.id} onStatusChange={setDocumentStatus} />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="button-finish-setup"
+              disabled={documentStatus !== 'saved'}
+              onClick={finishSetup}
+              className="inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 py-2 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('Finish setup', 'إنهاء الإعداد')}
+            </button>
+            {documentStatus !== 'saved' && (
+              <button
+                type="button"
+                data-testid="button-finish-upload-later"
+                disabled={documentStatus === 'loading' || documentStatus === 'uploading'}
+                onClick={finishSetup}
+                className="min-h-9 border border-[#c5d4e0] px-3 py-2 text-[11px] text-[#315b91] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t('Finish and upload later', 'إنهاء ورفع الملف لاحقًا')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      </>
+      )}
       </fieldset>
     </section>
   );
