@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Rently"
+description = "A public homepage introducing Rently, a rental financial management platform for individual landlords and small property owners. This first step is a static landing page only; authentication, dashboards, and backend behavior are not included."
+version = "1.0.0"
+id = "artifacts/rently"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20829
+
+[services.development]
+run = "pnpm --filter @workspace/rently run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/rently", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/rently/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20829"
+BASE_PATH = "/"
