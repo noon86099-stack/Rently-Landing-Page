@@ -1,0 +1,1 @@
+- [Rently visual direction](visual-direction.md) — The user wants a more technical look, less text, and a distinctive brand.
