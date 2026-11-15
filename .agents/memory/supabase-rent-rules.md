@@ -11,6 +11,12 @@ Supabase is the user's chosen replacement for MongoDB Atlas/Mongoose in the past
 
 **How to apply:** use the project publishable key only in browser code; never expose a service-role key. Scope every property, tenant, lease, payment, and file operation to the authenticated owner.
 
+Keep Rently registration simple, without email messages or confirmation.
+
+**Why:** the user requested "عملية تسجيل سهلة بدون رسائل ايميل او تاكيد".
+
+**How to apply:** retain password-protected accounts and owner isolation, but do not require email verification to complete signup. Configure this in Supabase Auth rather than bypassing authentication or exposing administrator credentials.
+
 Monthly rent is due on the contractual day of the month. If that day does not exist in a month, use the month's final day. An unpaid installment becomes overdue the day after its due date, with no grace period.
 
 **Why:** the user selected this recurring due-date rule.
