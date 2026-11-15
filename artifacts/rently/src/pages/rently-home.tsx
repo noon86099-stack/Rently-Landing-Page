@@ -4,7 +4,9 @@ import { ArrowDownRight, ArrowRight, CalendarDays, Check, FileText, Home, Loader
 import type { Session, User } from '@supabase/supabase-js';
 import { loadOwnerProperties, loadPropertyDetails, propertyLocation, type Property } from '@/lib/rently-data';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
-import { CreatePropertyForm } from '@/features/portfolio/create-property-form';
+import { CreatePropertyForm, PROPERTY_TYPE_LABELS } from '@/features/portfolio/create-property-form';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { AddUnitForm } from '@/features/portfolio/add-unit-form';
 import { CreateLeaseForm } from '@/features/portfolio/create-lease-form';
 import { LeaseRecord } from '@/features/portfolio/lease-record';
@@ -24,8 +26,9 @@ function RentlyMark({ inverse = false, size = 40 }: { inverse?: boolean; size?: 
 }
 
 function Wordmark({ compact = false }: { compact?: boolean }) {
+  const { t } = useI18n();
   return (
-    <a href="#top" className="inline-flex items-center gap-2.5" aria-label="Rently home">
+    <a href="#top" dir="ltr" className="inline-flex items-center gap-2.5" aria-label={t('Rently home', 'الصفحة الرئيسية لـ Rently')}>
       <RentlyMark size={compact ? 34 : 40} />
       <span className="text-[20px] font-bold tracking-[-.07em] text-[#102238]">rently<span className="text-[#3f7cff]">/</span></span>
     </a>
@@ -36,8 +39,9 @@ function AuthForm() {
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const { t, text } = useI18n();
+  const [notice, setMessage] = useState<UiMessage>('');
+  const [error, setError] = useState<UiMessage>('');
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -51,24 +55,25 @@ function AuthForm() {
         const { data, error: authError } = await supabase.auth.signUp({ email, password });
         if (authError) throw authError;
         if (!data.session) {
-          setMessage('Check your email to confirm your account, then sign in.');
+          setMessage(message('Check your email to confirm your account, then sign in.', 'راجع بريدك لتأكيد حسابك، ثم سجّل الدخول.'));
         }
       } else {
         const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) throw authError;
       }
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : 'Unable to authenticate. Try again.');
+      setError(authError instanceof Error && authError.message ? authError.message : message('Unable to authenticate. Try again.', 'تعذّر تسجيل الدخول. حاول مجددًا.'));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 grid gap-2.5" aria-label={mode === 'sign-in' ? 'Sign in' : 'Create an account'}>
+    <form onSubmit={handleSubmit} className="mt-4 grid gap-2.5" aria-label={mode === 'sign-in' ? t('Sign in', 'تسجيل الدخول') : t('Create an account', 'إنشاء حساب')}>
       <label className="grid gap-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#667b8e]">
-        Email
+        {t('Email', 'البريد الإلكتروني')}
         <input
+          dir="ltr"
           required
           type="email"
           autoComplete="email"
@@ -78,8 +83,9 @@ function AuthForm() {
         />
       </label>
       <label className="grid gap-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#667b8e]">
-        Password
+        {t('Password', 'كلمة المرور')}
         <input
+          dir="ltr"
           required
           minLength={8}
           type="password"
@@ -89,12 +95,12 @@ function AuthForm() {
           className="min-h-10 border border-[#cbd7e1] bg-white px-3 font-sans text-[12px] normal-case tracking-normal text-[#102238] outline-none focus:border-[#3f7cff] focus:ring-1 focus:ring-[#3f7cff]"
         />
       </label>
-      {error && <p role="alert" className="text-[10px] text-red-700">{error}</p>}
-      {message && <p role="status" className="text-[10px] text-[#466a2d]">{message}</p>}
+      {error && <p role="alert" className="text-[10px] text-red-700">{text(error)}</p>}
+      {notice && <p role="status" className="text-[10px] text-[#466a2d]">{text(notice)}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <button disabled={submitting} className="inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white disabled:opacity-60">
           {submitting && <LoaderCircle size={13} className="animate-spin" />}
-          {mode === 'sign-in' ? 'Sign in' : 'Create account'}
+          {mode === 'sign-in' ? t('Sign in', 'تسجيل الدخول') : t('Create account', 'إنشاء الحساب')}
         </button>
         <button
           type="button"
@@ -105,7 +111,7 @@ function AuthForm() {
           }}
           className="font-mono text-[8px] uppercase tracking-[.06em] text-[#315b91] underline underline-offset-2"
         >
-          {mode === 'sign-in' ? 'Create an account' : 'Already registered? Sign in'}
+          {mode === 'sign-in' ? t('Create an account', 'إنشاء حساب') : t('Already registered? Sign in', 'لديك حساب؟ سجّل الدخول')}
         </button>
       </div>
     </form>
@@ -123,6 +129,7 @@ function PropertyButton({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { t, text } = useI18n();
   const accents = ['bg-[#dce8f3]', 'bg-[#e6e8df]', 'bg-[#e8e1d8]', 'bg-[#e3e4f0]'];
   const glyph = property.name
     .trim()
@@ -137,25 +144,26 @@ function PropertyButton({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      aria-label={`Show tenant and lease details for ${property.name}`}
-      className={`grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 bg-[#f7f9fb] p-2.5 text-left transition-colors hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] md:grid-cols-[48px_minmax(0,1fr)_auto_auto] md:gap-4 md:p-3 ${selected ? 'border-[#3f7cff] ring-1 ring-[#3f7cff]' : 'border border-[#d7e0e7]'}`}
+      aria-label={t(`Show tenant and lease details for ${property.name}`, `عرض تفاصيل المستأجر والعقد لـ ${property.name}`)}
+      className={`grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 bg-[#f7f9fb] p-2.5 text-start transition-colors hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] md:grid-cols-[48px_minmax(0,1fr)_auto_auto] md:gap-4 md:p-3 ${selected ? 'border-[#3f7cff] ring-1 ring-[#3f7cff]' : 'border border-[#d7e0e7]'}`}
     >
       <div className={`grid h-[42px] w-[42px] place-items-center ${accents[index % accents.length]} font-mono text-[10px] font-medium tracking-[.08em] text-[#344f68] md:h-12 md:w-12`}>{glyph || 'RE'}</div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <p className="truncate text-[11px] font-semibold tracking-[-.02em]">{property.name}</p>
-          <span className="border border-[#bfcfdd] px-1 py-0.5 font-mono text-[7px] uppercase tracking-[.06em] text-[#526c83]">Owned</span>
+          <p dir="auto" className="truncate text-[11px] font-semibold tracking-[-.02em]">{property.name}</p>
+          <span className="border border-[#bfcfdd] px-1 py-0.5 font-mono text-[7px] uppercase tracking-[.06em] text-[#526c83]">{t('Owned', 'مملوك')}</span>
         </div>
-        <p className="mt-1 flex items-center gap-1 truncate font-mono text-[8px] text-[#7b8da0]"><MapPin size={9} />{propertyLocation(property)}</p>
+        <p className="mt-1 flex items-center gap-1 truncate font-mono text-[8px] text-[#7b8da0]"><MapPin size={9} /><bdi>{propertyLocation(property)}</bdi></p>
       </div>
-      <span className="hidden font-mono text-[8px] text-[#61768b] md:block">{property.property_type}</span>
-      <span className="whitespace-nowrap border-l border-[#dce3e9] pl-3 font-mono text-[8px] text-[#61768b]">{property.units.length} {property.units.length === 1 ? 'unit' : 'units'}</span>
+      <span className="hidden font-mono text-[8px] text-[#61768b] md:block">{PROPERTY_TYPE_LABELS[property.property_type] ? text(PROPERTY_TYPE_LABELS[property.property_type]) : property.property_type}</span>
+      <span className="whitespace-nowrap border-s border-[#dce3e9] ps-3 font-mono text-[8px] text-[#61768b]">{property.units.length} {property.units.length === 1 ? t('unit', 'وحدة') : t('units', 'وحدات')}</span>
     </button>
   );
 }
 
 export function RentlyHomepage() {
   const queryClient = useQueryClient();
+  const { t, text } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const today = useToday();
@@ -237,82 +245,86 @@ export function RentlyHomepage() {
 
   return (
     <main id="top" className="min-h-[100dvh] overflow-hidden bg-[#e9eef3] text-[#102238]">
-      <header className="relative z-10 mx-auto flex max-w-[1440px] items-center justify-between border-b border-[#d1dbe4] px-5 py-4 md:px-12 lg:px-[7.4%]">
+      <header className="relative z-10 mx-auto flex max-w-[1440px] items-center justify-between gap-3 border-b border-[#d1dbe4] px-5 py-4 md:px-12 lg:px-[7.4%]">
         <Wordmark />
-        <nav className="hidden items-center gap-8 font-mono text-[10px] uppercase tracking-[.08em] text-[#53677c] md:flex" aria-label="Main navigation">
-          <a href="#portfolio" className="transition-colors hover:text-[#102238]">Portfolio</a>
-          <a href="#records" className="transition-colors hover:text-[#102238]">Rental records</a>
-          <a href="#owners" className="transition-colors hover:text-[#102238]">For owners</a>
-        </nav>
-        {user ? (
-          <div className="flex max-w-[55%] items-center gap-2 sm:gap-3">
-            <span className="truncate font-mono text-[9px] text-[#61758a]">{user.email}</span>
-            <button type="button" onClick={() => void signOut()} className="rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white">Sign out</button>
-          </div>
-        ) : (
-          <a href="#portfolio" className="rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white sm:px-4">Owner sign in</a>
-        )}
+        {!user && <nav className="hidden items-center gap-8 font-mono text-[10px] uppercase tracking-[.08em] text-[#53677c] md:flex" aria-label={t('Main navigation', 'التنقل الرئيسي')}>
+          <a href="#portfolio" className="transition-colors hover:text-[#102238]">{t('Portfolio', 'المحفظة')}</a>
+          <a href="#records" className="transition-colors hover:text-[#102238]">{t('Rental records', 'سجلات الإيجار')}</a>
+          <a href="#owners" className="transition-colors hover:text-[#102238]">{t('For owners', 'للملاك')}</a>
+        </nav>}
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <LanguageSwitcher />
+          {user ? (
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <span dir="ltr" className="hidden truncate font-mono text-[9px] text-[#61758a] sm:inline">{user.email}</span>
+              <button type="button" onClick={() => void signOut()} className="shrink-0 whitespace-nowrap rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white">{t('Sign out', 'تسجيل الخروج')}</button>
+            </div>
+          ) : (
+            <a href="#portfolio" className="shrink-0 whitespace-nowrap rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white sm:px-4">{t('Owner sign in', 'دخول المالك')}</a>
+          )}
+        </div>
       </header>
 
-      <section className="mx-auto grid max-w-[1440px] gap-10 px-5 pb-16 pt-12 md:px-12 md:pb-24 md:pt-16 lg:grid-cols-[.72fr_1.28fr] lg:items-center lg:gap-12 lg:px-[7.4%]">
-        <div className="relative z-[1] max-w-[500px]">
+      <section className={user ? 'mx-auto grid max-w-[1440px] px-4 pb-10 pt-5 md:px-8 md:pt-6 lg:px-10' : 'mx-auto grid max-w-[1440px] gap-10 px-5 pb-16 pt-12 md:px-12 md:pb-24 md:pt-16 lg:grid-cols-[.72fr_1.28fr] lg:items-center lg:gap-12 lg:px-[7.4%]'}>
+        {!user && <div className="relative z-[1] max-w-[500px]">
           <div className="mb-6 inline-flex items-center gap-2 border border-[#c6d3df] bg-[#f2f6f9] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.13em] text-[#536c83]">
-            <span className="h-1.5 w-1.5 bg-[#3f7cff]" /> Your properties, clearly kept
+            <span className="h-1.5 w-1.5 bg-[#3f7cff]" /> {t('Your properties, clearly kept', 'عقاراتك، بوضوح وترتيب')}
           </div>
-          <h1 className="max-w-[560px] text-[clamp(3.1rem,6.4vw,5.7rem)] font-semibold leading-[.91] tracking-[-.075em]">Start with<br />what you <span className="text-[#3f7cff]">own.</span></h1>
-          <p className="mt-6 max-w-[340px] text-[14px] leading-[1.65] text-[#566b80]">Your rental properties lead. Tenants, leases and rent records stay connected to each one.</p>
+          <h1 className="max-w-[560px] text-[clamp(3.1rem,6.4vw,5.7rem)] font-semibold leading-[.91] tracking-[-.075em]">{t('Start with', 'ابدأ بما')}<br />{t('what you', 'تملكه')} <span className="text-[#3f7cff]">{t('own.', 'أنت.')}</span></h1>
+          <p className="mt-6 max-w-[340px] text-[14px] leading-[1.65] text-[#566b80]">{t('Your rental properties lead. Tenants, leases and rent records stay connected to each one.', 'عقاراتك المؤجرة في المقدمة. المستأجرون والعقود وسجلات الإيجار تبقى مرتبطة بكل عقار.')}</p>
           <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <a href="#portfolio" className="group inline-flex items-center gap-3 rounded-sm bg-[#3f7cff] px-4 py-3 text-[12px] font-semibold text-white transition-transform hover:-translate-y-0.5">Explore the portfolio <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" /></a>
-            <span className="font-mono text-[9px] uppercase tracking-[.08em] text-[#718398]">For independent owners</span>
+            <a href="#portfolio" className="group inline-flex items-center gap-3 rounded-sm bg-[#3f7cff] px-4 py-3 text-[12px] font-semibold text-white transition-transform hover:-translate-y-0.5">{t('Explore the portfolio', 'استكشف المحفظة')} <ArrowRight size={14} className="transition-transform group-hover:translate-x-1 rtl:-scale-x-100 rtl:group-hover:-translate-x-1" /></a>
+            <span className="font-mono text-[9px] uppercase tracking-[.08em] text-[#718398]">{t('For independent owners', 'للملاك المستقلين')}</span>
           </div>
-          <div className="mt-11 flex items-center gap-3 border-t border-[#cbd6df] pt-4"><RentlyMark size={25} /><p className="font-mono text-[10px] text-[#526980]">Your inventory. Its records.</p></div>
-        </div>
+          <div className="mt-11 flex items-center gap-3 border-t border-[#cbd6df] pt-4"><RentlyMark size={25} /><p className="font-mono text-[10px] text-[#526980]">{t('Your inventory. Its records.', 'ممتلكاتك. وسجلاتها.')}</p></div>
+        </div>}
 
-        <div className="relative mx-auto w-full max-w-[760px] lg:ml-auto">
-          <div className="absolute -right-4 -top-5 h-[180px] w-[180px] border border-[#c5d2de] md:-right-9 md:-top-8 md:h-[280px] md:w-[280px]" />
-          <div className="relative border border-[#c6d2dd] bg-[#f4f7f9] p-3 shadow-[0_24px_70px_-48px_rgba(16,34,56,.45)] md:p-5">
+        <div className={user ? 'relative w-full' : 'relative mx-auto w-full max-w-[760px] lg:ms-auto'}>
+          {!user && <div className="absolute -end-4 -top-5 h-[180px] w-[180px] border border-[#c5d2de] md:-end-9 md:-top-8 md:h-[280px] md:w-[280px]" />}
+          <div className={`relative border border-[#c6d2dd] bg-[#f4f7f9] p-3 md:p-5 ${user ? '' : 'shadow-[0_24px_70px_-48px_rgba(16,34,56,.45)]'}`}>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d8e1e8] px-2 pb-3 pt-1">
-              <div className="flex items-center gap-2.5"><RentlyMark size={28} /><div><p className="text-[11px] font-bold tracking-[-.02em]">Property portfolio</p><p className="font-mono text-[8px] uppercase tracking-[.09em] text-[#7b8da0]">Owner inventory / private records</p></div></div>
-              <span className="border border-[#c5d4e0] bg-[#e8f0f6] px-2 py-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#44627e]">{user ? 'Owner data' : 'Sign in required'}</span>
+              <div className="flex items-center gap-2.5"><RentlyMark size={28} /><div><p className={user ? 'text-[13px] font-bold tracking-[-.02em]' : 'text-[11px] font-bold tracking-[-.02em]'}>{t('Property portfolio', 'محفظة العقارات')}</p>{!user && <p className="font-mono text-[8px] uppercase tracking-[.09em] text-[#7b8da0]">{t('Owner inventory / private records', 'ممتلكات المالك / سجلات خاصة')}</p>}</div></div>
+              {!user && <span className="border border-[#c5d4e0] bg-[#e8f0f6] px-2 py-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#44627e]">{t('Sign in required', 'يلزم تسجيل الدخول')}</span>}
             </div>
 
+            <div className={user ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(300px,.42fr)_1fr] xl:items-start' : ''}>
             <div id="portfolio" className="mt-3 border border-[#cdd9e3] bg-[#e7eef4] p-3 md:p-4">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-2 px-1">
-                <div><p className="font-mono text-[8px] uppercase tracking-[.12em] text-[#536c83]">Owned properties</p><h2 className="mt-1 text-[17px] font-semibold tracking-[-.045em]">Your portfolio <span className="font-mono text-[10px] font-normal text-[#6f8295]">{propertiesQuery.data ? `/ ${String(propertiesQuery.data.length).padStart(2, '0')}` : ''}</span></h2></div>
+                <div><p className="font-mono text-[8px] uppercase tracking-[.12em] text-[#536c83]">{t('Owned properties', 'العقارات المملوكة')}</p><h2 className="mt-1 text-[17px] font-semibold tracking-[-.045em]">{t('Your portfolio', 'محفظتك')} <span className="font-mono text-[10px] font-normal text-[#6f8295]">{propertiesQuery.data ? `/ ${String(propertiesQuery.data.length).padStart(2, '0')}` : ''}</span></h2></div>
                 {user && token ? (
                   <CreatePropertyForm token={token} userId={user.id} onCreated={(id) => setSelectedPropertyId(id)} />
                 ) : (
-                  <span className="flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[.07em] text-[#536c83]"><Home size={12} className="text-[#3f7cff]" /> Landlord-owned</span>
+                  <span className="flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[.07em] text-[#536c83]"><Home size={12} className="text-[#3f7cff]" /> {t('Landlord-owned', 'ملك المالك')}</span>
                 )}
               </div>
               {!supabaseConfigured ? (
                 <div className="border border-[#d7e0e7] bg-[#f7f9fb] p-4">
-                  <p className="text-[11px] font-semibold">Rently database connection is not set up yet.</p>
-                  <p className="mt-1 text-[9px] leading-5 text-[#718398]">Connect the dedicated Supabase project to load private owner records.</p>
+                  <p className="text-[11px] font-semibold">{t('Rently database connection is not set up yet.', 'لم يتم إعداد اتصال قاعدة بيانات Rently بعد.')}</p>
+                  <p className="mt-1 text-[9px] leading-5 text-[#718398]">{t('Connect the dedicated Supabase project to load private owner records.', 'اربط مشروع Supabase المخصص لتحميل سجلات المالك الخاصة.')}</p>
                 </div>
               ) : !authReady ? (
-                <p role="status" className="flex items-center gap-2 p-4 font-mono text-[9px] text-[#61768b]"><LoaderCircle size={14} className="animate-spin" /> Restoring secure session…</p>
+                <p role="status" className="flex items-center gap-2 p-4 font-mono text-[9px] text-[#61768b]"><LoaderCircle size={14} className="animate-spin" /> {t('Restoring secure session…', 'جارٍ استعادة الجلسة الآمنة…')}</p>
               ) : !user ? (
                 <div className="grid gap-2 border border-[#d7e0e7] bg-[#f7f9fb] p-4 sm:grid-cols-[.8fr_1.2fr] sm:gap-5">
-                  <div><p className="text-[11px] font-semibold">Sign in to view your properties</p><p className="mt-1 text-[9px] leading-5 text-[#718398]">Only records belonging to your account can be loaded.</p></div>
+                  <div><p className="text-[11px] font-semibold">{t('Sign in to view your properties', 'سجّل الدخول لعرض عقاراتك')}</p><p className="mt-1 text-[9px] leading-5 text-[#718398]">{t('Only records belonging to your account can be loaded.', 'لا يتم تحميل إلا السجلات التابعة لحسابك.')}</p></div>
                   <AuthForm />
                 </div>
               ) : propertiesQuery.isPending ? (
-                <p role="status" className="flex items-center gap-2 p-4 font-mono text-[9px] text-[#61768b]"><LoaderCircle size={14} className="animate-spin" /> Loading your properties…</p>
+                <p role="status" className="flex items-center gap-2 p-4 font-mono text-[9px] text-[#61768b]"><LoaderCircle size={14} className="animate-spin" /> {t('Loading your properties…', 'جارٍ تحميل عقاراتك…')}</p>
               ) : propertiesQuery.isError ? (
                 <div role="alert" className="border border-red-200 bg-red-50 p-4">
-                  <p className="text-[10px] font-semibold text-red-800">Your properties could not be loaded.</p>
-                  <p className="mt-1 text-[9px] text-red-700">{propertiesQuery.error.message}</p>
-                  <button type="button" onClick={() => void propertiesQuery.refetch()} className="mt-2 font-mono text-[8px] uppercase text-red-800 underline">Try again</button>
+                  <p className="text-[10px] font-semibold text-red-800">{t('Your properties could not be loaded.', 'تعذّر تحميل عقاراتك.')}</p>
+                  <p className="mt-1 text-[9px] text-red-700">{text(propertiesQuery.error.message)}</p>
+                  <button type="button" onClick={() => void propertiesQuery.refetch()} className="mt-2 font-mono text-[8px] uppercase text-red-800 underline">{t('Try again', 'حاول مجددًا')}</button>
                 </div>
               ) : propertiesQuery.data?.length === 0 ? (
                 <div className="border border-[#d7e0e7] bg-[#f7f9fb] p-4">
-                  <p className="text-[11px] font-semibold">No properties yet.</p>
-                  <p className="mt-1 text-[9px] text-[#718398]">Use + Property to add the first one.</p>
+                  <p className="text-[11px] font-semibold">{t('No properties yet.', 'لا توجد عقارات بعد.')}</p>
+                  <p className="mt-1 text-[9px] text-[#718398]">{t('Use Add property to add the first one.', 'استخدم «إضافة عقار» لإضافة أول عقار.')}</p>
                 </div>
               ) : (
                 <>
-                  <p className="mb-2 px-1 font-mono text-[7px] uppercase tracking-[.08em] text-[#7b8da0]">Select a property for its tenant and lease details</p>
+                  {!user && <p className="mb-2 px-1 font-mono text-[7px] uppercase tracking-[.08em] text-[#7b8da0]">{t('Select a property for its tenant and lease details', 'اختر عقارًا لعرض تفاصيل المستأجر والعقد')}</p>}
                   <div className="space-y-2">
                     {propertiesQuery.data?.map((property, index) => (
                       <PropertyButton
@@ -328,42 +340,42 @@ export function RentlyHomepage() {
               )}
             </div>
 
-            <div id="records" className="mt-3">
+            <div id="records" className={user ? 'mt-3 xl:mt-0' : 'mt-3'}>
               {!user ? null : !selectedProperty ? null : (
-                <div className="grid gap-2.5 md:grid-cols-[.72fr_1.28fr]">
+                <div className="grid gap-2.5 md:grid-cols-[.72fr_1.28fr] xl:grid-cols-[minmax(260px,.6fr)_1.4fr]">
                   <div className="grid content-start gap-2.5">
                     <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3 md:p-4">
-                      <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">Selected property</p><Home size={14} className="text-[#3f7cff]" /></div>
-                      <p data-testid="text-selected-property" className="mt-2 text-[12px] font-semibold tracking-[-.025em]">{selectedProperty.name}</p>
-                      <p className="mt-1 font-mono text-[8px] text-[#778a9c]">{propertyLocation(selectedProperty)}</p>
+                      <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">{t('Selected property', 'العقار المحدد')}</p><Home size={14} className="text-[#3f7cff]" /></div>
+                      <p data-testid="text-selected-property" dir="auto" className="mt-2 text-[12px] font-semibold tracking-[-.025em]">{selectedProperty.name}</p>
+                      <p className="mt-1 font-mono text-[8px] text-[#778a9c]"><bdi>{propertyLocation(selectedProperty)}</bdi></p>
                       <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[7px] uppercase tracking-[.05em]">
-                        <span className="border border-[#cbd8e2] bg-[#e8eef3] px-1.5 py-1 text-[#47617a]">{selectedProperty.property_type}</span>
-                        <span className="border border-[#d8e1e8] px-1.5 py-1 text-[#6b7f92]">{selectedProperty.units.length} {selectedProperty.units.length === 1 ? 'unit' : 'units'}</span>
+                        <span className="border border-[#cbd8e2] bg-[#e8eef3] px-1.5 py-1 text-[#47617a]">{PROPERTY_TYPE_LABELS[selectedProperty.property_type] ? text(PROPERTY_TYPE_LABELS[selectedProperty.property_type]) : selectedProperty.property_type}</span>
+                        <span className="border border-[#d8e1e8] px-1.5 py-1 text-[#6b7f92]">{selectedProperty.units.length} {selectedProperty.units.length === 1 ? t('unit', 'وحدة') : t('units', 'وحدات')}</span>
                       </div>
                     </div>
-                    {token && <Panel code="U+" title="Add unit"><AddUnitForm key={selectedProperty.id} token={token} userId={user.id} propertyId={selectedProperty.id} /></Panel>}
+                    {token && <Panel code="U+" title={message('Add unit', 'إضافة وحدة')}><AddUnitForm key={selectedProperty.id} token={token} userId={user.id} propertyId={selectedProperty.id} /></Panel>}
                     {detailsQuery.data?.rentSetupRequired ? (
-                      <p role="alert" className="border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">Rent management needs the Supabase database update. Your existing records remain available.</p>
-                    ) : token && detailsQuery.data && <Panel code="L+" title="New lease"><CreateLeaseForm key={selectedProperty.id} token={token} userId={user.id} propertyId={selectedProperty.id} units={detailsQuery.data.units} /></Panel>}
+                      <p role="alert" className="border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">{t('Rent management needs the Supabase database update. Your existing records remain available.', 'تحتاج إدارة الإيجارات إلى تحديث قاعدة بيانات Supabase. سجلاتك الحالية ما زالت متاحة.')}</p>
+                    ) : token && detailsQuery.data && <Panel code="L+" title={message('New lease', 'عقد جديد')}><CreateLeaseForm key={selectedProperty.id} token={token} userId={user.id} propertyId={selectedProperty.id} units={detailsQuery.data.units} /></Panel>}
                   </div>
                   <div className="border border-[#d8e1e8] bg-[#f8fafb] px-3 py-3 md:px-4" aria-live="polite">
-                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-bold">Units / leases / dues</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">{today}</span></div>
+                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-bold">{t('Units / leases / dues', 'الوحدات / العقود / المستحقات')}</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]" dir="ltr">{today}</span></div>
                     {detailsQuery.isPending ? (
-                      <div role="status" aria-label="Loading records" className="space-y-2 border-t border-[#dce3e9] pt-3">{[0, 1, 2].map((i) => <div key={i} className="h-10 animate-pulse bg-[#e4ebf1]" />)}</div>
+                      <div role="status" aria-label={t('Loading records', 'جارٍ تحميل السجلات')} className="space-y-2 border-t border-[#dce3e9] pt-3">{[0, 1, 2].map((i) => <div key={i} className="h-10 animate-pulse bg-[#e4ebf1]" />)}</div>
                     ) : detailsQuery.isError ? (
                       <div role="alert" className="border-t border-[#dce3e9] py-3 text-[9px] text-red-700">
-                        Records failed to load: {detailsQuery.error.message}
-                        <button type="button" onClick={() => void detailsQuery.refetch()} className="ml-2 underline">Retry</button>
+                        {t('Records failed to load:', 'تعذّر تحميل السجلات:')} {text(detailsQuery.error.message)}
+                        <button type="button" onClick={() => void detailsQuery.refetch()} className="ms-2 underline">{t('Retry', 'إعادة المحاولة')}</button>
                       </div>
                     ) : detailsQuery.data ? (
                       <div className="space-y-3 border-t border-[#dce3e9] pt-2">
                         {detailsQuery.data.units.length === 0 ? (
-                          <p className="text-[9px] text-[#718398]">No units. Add one to start a lease.</p>
+                          <p className="text-[9px] text-[#718398]">{t('No units. Add one to start a lease.', 'لا توجد وحدات. أضف وحدة لبدء عقد.')}</p>
                         ) : detailsQuery.data.units.map((unit) => (
                           <section key={unit.id} data-testid={`section-unit-${unit.id}`} className="border-b border-[#e4e9ee] pb-3 last:border-0 last:pb-0">
-                            <p className="mb-2 flex items-center justify-between font-mono text-[8px] uppercase tracking-[.06em] text-[#47617a]"><span>{unit.unit_label}</span><span className="text-[#8192a3]">{unit.leases.length} {unit.leases.length === 1 ? 'lease' : 'leases'}</span></p>
+                            <p className="mb-2 flex items-center justify-between font-mono text-[8px] uppercase tracking-[.06em] text-[#47617a]"><bdi dir="auto">{unit.unit_label}</bdi><span className="text-[#8192a3]">{unit.leases.length} {unit.leases.length === 1 ? t('lease', 'عقد') : t('leases', 'عقود')}</span></p>
                             {unit.leases.length === 0 ? (
-                              <p className="text-[9px] text-[#718398]">Vacant. No lease.</p>
+                              <p className="text-[9px] text-[#718398]">{t('Vacant. No lease.', 'شاغرة. لا يوجد عقد.')}</p>
                             ) : (
                               <div className="space-y-2">{[...unit.leases].sort((a, b) => b.start_date.localeCompare(a.start_date)).map((lease) => (
                                 <LeaseRecord key={lease.id} lease={lease} ctx={{ token, userId: user.id, propertyId: selectedProperty.id, today }} />
@@ -377,28 +389,32 @@ export function RentlyHomepage() {
                 </div>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#d8e1e8] px-1 pt-2 font-mono text-[7px] uppercase tracking-[.08em] text-[#7d90a1]"><span>Property → unit → lease</span><span className="text-[#60778c]">Private owner records</span></div>
+            </div>
+            {!user && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#d8e1e8] px-1 pt-2 font-mono text-[7px] uppercase tracking-[.08em] text-[#7d90a1]"><span>{t('Property → unit → lease', 'العقار ← الوحدة ← العقد')}</span><span className="text-[#60778c]">{t('Private owner records', 'سجلات المالك الخاصة')}</span></div>}
           </div>
         </div>
       </section>
 
-      <section className="border-y border-[#cbd6df] bg-[#dde6ed]"><div className="mx-auto grid max-w-[1440px] gap-4 px-5 py-5 sm:grid-cols-2 md:grid-cols-4 md:items-center md:px-12 lg:px-[7.4%]"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#6b8094]">Owner records, in context</p><div className="flex items-center gap-2.5"><Home size={15} className="text-[#3f7cff]" /><span className="text-[10px] font-semibold">Your properties & units</span></div><div className="flex items-center gap-2.5"><UsersRound size={15} className="text-[#3f7cff]" /><span className="text-[10px] font-semibold">Linked tenants & leases</span></div><div className="flex items-center gap-2.5"><CalendarDays size={15} className="text-[#3f7cff]" /><span className="text-[10px] font-semibold">Due dates & manual rent records</span></div></div></section>
+      {!user && <>
+      <section className="border-y border-[#cbd6df] bg-[#dde6ed]"><div className="mx-auto grid max-w-[1440px] gap-4 px-5 py-5 sm:grid-cols-2 md:grid-cols-4 md:items-center md:px-12 lg:px-[7.4%]"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#6b8094]">{t('Owner records, in context', 'سجلات المالك في سياقها')}</p><div className="flex items-center gap-2.5"><Home size={15} className="text-[#3f7cff]" /><span className="text-[10px] font-semibold">{t('Your properties & units', 'عقاراتك ووحداتها')}</span></div><div className="flex items-center gap-2.5"><UsersRound size={15} className="text-[#3f7cff]" /><span className="text-[10px] font-semibold">{t('Linked tenants & leases', 'مستأجرون وعقود مرتبطة')}</span></div><div className="flex items-center gap-2.5"><CalendarDays size={15} className="text-[#3f7cff]" /><span className="text-[10px] font-semibold">{t('Due dates & manual rent records', 'مواعيد الاستحقاق وسجلات الإيجار اليدوية')}</span></div></div></section>
 
       <section className="mx-auto max-w-[1440px] px-5 py-16 md:px-12 md:py-24 lg:px-[7.4%]">
-        <div className="grid gap-7 md:grid-cols-[.78fr_1.22fr] md:gap-20"><div><p className="font-mono text-[9px] uppercase tracking-[.14em] text-[#3f7cff]">01 / Keep in order</p><h2 className="mt-4 max-w-[400px] text-[clamp(2.1rem,4.1vw,3.7rem)] font-semibold leading-[.98] tracking-[-.07em]">Your properties<br />are the starting point.</h2></div><p className="max-w-[390px] pt-2 text-[13px] leading-[1.7] text-[#586e83] md:pt-8">Make the owner’s inventory distinct. Then follow each home’s units, people, lease dates and manually recorded rent.</p></div>
+        <div className="grid gap-7 md:grid-cols-[.78fr_1.22fr] md:gap-20"><div><p className="font-mono text-[9px] uppercase tracking-[.14em] text-[#3f7cff]">{t('01 / Keep in order', '01 / رتّب سجلاتك')}</p><h2 className="mt-4 max-w-[400px] text-[clamp(2.1rem,4.1vw,3.7rem)] font-semibold leading-[.98] tracking-[-.07em]">{t('Your properties', 'عقاراتك')}<br />{t('are the starting point.', 'هي نقطة البداية.')}</h2></div><p className="max-w-[390px] pt-2 text-[13px] leading-[1.7] text-[#586e83] md:pt-8">{t('Make the owner’s inventory distinct. Then follow each home’s units, people, lease dates and manually recorded rent.', 'اجعل ممتلكات المالك واضحة. ثم تابع وحدات كل عقار والأشخاص ومواعيد العقود والإيجار المسجّل يدويًا.')}</p></div>
         <div className="mt-10 grid border-t border-[#cbd6df] md:mt-14 md:grid-cols-2">
-          <article className="border-b border-[#cbd6df] py-5 md:border-r md:pr-12 md:py-7"><div className="flex items-start justify-between"><span className="grid h-9 w-9 place-items-center border border-[#cbd6df] bg-[#f0f4f7] text-[#3f7cff]"><Home size={16} /></span><span className="font-mono text-[8px] uppercase tracking-[.1em] text-[#8092a3]">01 / Inventory</span></div><h3 className="mt-4 text-[15px] font-semibold tracking-[-.035em]">See what you own</h3><p className="mt-1 text-[11px] text-[#708398]">Keep rental homes and their units clearly identified.</p></article>
-          <article className="border-b border-[#cbd6df] py-5 md:pl-12 md:py-7"><div className="flex items-start justify-between"><span className="grid h-9 w-9 place-items-center border border-[#cbd6df] bg-[#f0f4f7] text-[#3f7cff]"><UsersRound size={16} /></span><span className="font-mono text-[8px] uppercase tracking-[.1em] text-[#8092a3]">02 / Connections</span></div><h3 className="mt-4 text-[15px] font-semibold tracking-[-.035em]">Link people & leases</h3><p className="mt-1 text-[11px] text-[#708398]">Tenant and agreement details stay under the right unit.</p></article>
-          <article className="border-b border-[#cbd6df] py-5 md:border-b-0 md:border-r md:pr-12 md:py-7"><div className="flex items-start justify-between"><span className="grid h-9 w-9 place-items-center border border-[#cbd6df] bg-[#f0f4f7] text-[#3f7cff]"><FileText size={16} /></span><span className="font-mono text-[8px] uppercase tracking-[.1em] text-[#8092a3]">03 / Agreement</span></div><h3 className="mt-4 text-[15px] font-semibold tracking-[-.035em]">Keep lease dates close</h3><p className="mt-1 text-[11px] text-[#708398]">Find agreement terms where the rental relationship lives.</p></article>
-          <article className="border-b border-[#cbd6df] py-5 md:border-b-0 md:pl-12 md:py-7"><div className="flex items-start justify-between"><span className="grid h-9 w-9 place-items-center border border-[#cbd6df] bg-[#f0f4f7] text-[#3f7cff]"><CalendarDays size={16} /></span><span className="font-mono text-[8px] uppercase tracking-[.1em] text-[#8092a3]">04 / Rent</span></div><h3 className="mt-4 text-[15px] font-semibold tracking-[-.035em]">Record rent manually</h3><p className="mt-1 text-[11px] text-[#708398]">See due dates; log payments yourself.</p></article>
+          <article className="border-b border-[#cbd6df] py-5 md:border-e md:pe-12 md:py-7"><div className="flex items-start justify-between"><span className="grid h-9 w-9 place-items-center border border-[#cbd6df] bg-[#f0f4f7] text-[#3f7cff]"><Home size={16} /></span><span className="font-mono text-[8px] uppercase tracking-[.1em] text-[#8092a3]">{t('01 / Inventory', '01 / الممتلكات')}</span></div><h3 className="mt-4 text-[15px] font-semibold tracking-[-.035em]">{t('See what you own', 'اعرف ما تملكه')}</h3><p className="mt-1 text-[11px] text-[#708398]">{t('Keep rental homes and their units clearly identified.', 'حدّد العقارات المؤجرة ووحداتها بوضوح.')}</p></article>
+          <article className="border-b border-[#cbd6df] py-5 md:ps-12 md:py-7"><div className="flex items-start justify-between"><span className="grid h-9 w-9 place-items-center border border-[#cbd6df] bg-[#f0f4f7] text-[#3f7cff]"><UsersRound size={16} /></span><span className="font-mono text-[8px] uppercase tracking-[.1em] text-[#8092a3]">{t('02 / Connections', '02 / الروابط')}</span></div><h3 className="mt-4 text-[15px] font-semibold tracking-[-.035em]">{t('Link people & leases', 'اربط الأشخاص والعقود')}</h3><p className="mt-1 text-[11px] text-[#708398]">{t('Tenant and agreement details stay under the right unit.', 'تبقى تفاصيل المستأجر والاتفاق تحت الوحدة الصحيحة.')}</p></article>
+          <article className="border-b border-[#cbd6df] py-5 md:border-b-0 md:border-e md:pe-12 md:py-7"><div className="flex items-start justify-between"><span className="grid h-9 w-9 place-items-center border border-[#cbd6df] bg-[#f0f4f7] text-[#3f7cff]"><FileText size={16} /></span><span className="font-mono text-[8px] uppercase tracking-[.1em] text-[#8092a3]">{t('03 / Agreement', '03 / الاتفاق')}</span></div><h3 className="mt-4 text-[15px] font-semibold tracking-[-.035em]">{t('Keep lease dates close', 'مواعيد العقد في متناولك')}</h3><p className="mt-1 text-[11px] text-[#708398]">{t('Find agreement terms where the rental relationship lives.', 'تجد شروط الاتفاق حيث تعيش علاقة الإيجار.')}</p></article>
+          <article className="border-b border-[#cbd6df] py-5 md:border-b-0 md:ps-12 md:py-7"><div className="flex items-start justify-between"><span className="grid h-9 w-9 place-items-center border border-[#cbd6df] bg-[#f0f4f7] text-[#3f7cff]"><CalendarDays size={16} /></span><span className="font-mono text-[8px] uppercase tracking-[.1em] text-[#8092a3]">{t('04 / Rent', '04 / الإيجار')}</span></div><h3 className="mt-4 text-[15px] font-semibold tracking-[-.035em]">{t('Record rent manually', 'سجّل الإيجار يدويًا')}</h3><p className="mt-1 text-[11px] text-[#708398]">{t('See due dates; log payments yourself.', 'اطّلع على المواعيد وسجّل الدفعات بنفسك.')}</p></article>
         </div>
       </section>
 
-      <section className="bg-[#102238] text-[#f0f5f8]"><div className="mx-auto grid max-w-[1440px] gap-8 px-5 py-12 md:grid-cols-[.8fr_1.2fr] md:px-12 md:py-16 lg:px-[7.4%]"><div><p className="font-mono text-[8px] uppercase tracking-[.14em] text-[#b5f06b]">02 / A simple sequence</p><h2 className="mt-4 max-w-[330px] text-[clamp(2rem,3.8vw,3.3rem)] font-semibold leading-[.98] tracking-[-.065em]">From your property outward.</h2></div><div className="grid gap-4 sm:grid-cols-4"><div className="border-t border-[#506175] py-3"><span className="font-mono text-[9px] text-[#b5f06b]">01</span><p className="mt-3 text-[12px] font-semibold">Property</p></div><div className="border-t border-[#506175] py-3"><span className="font-mono text-[9px] text-[#b5f06b]">02</span><p className="mt-3 text-[12px] font-semibold">Unit</p></div><div className="border-t border-[#506175] py-3"><span className="font-mono text-[9px] text-[#b5f06b]">03</span><p className="mt-3 text-[12px] font-semibold">Tenant & lease</p></div><div className="border-t border-[#506175] py-3"><span className="font-mono text-[9px] text-[#b5f06b]">04</span><p className="mt-3 text-[12px] font-semibold">Manual rent record</p></div></div></div></section>
+      <section className="bg-[#102238] text-[#f0f5f8]"><div className="mx-auto grid max-w-[1440px] gap-8 px-5 py-12 md:grid-cols-[.8fr_1.2fr] md:px-12 md:py-16 lg:px-[7.4%]"><div><p className="font-mono text-[8px] uppercase tracking-[.14em] text-[#b5f06b]">{t('02 / A simple sequence', '02 / تسلسل بسيط')}</p><h2 className="mt-4 max-w-[330px] text-[clamp(2rem,3.8vw,3.3rem)] font-semibold leading-[.98] tracking-[-.065em]">{t('From your property outward.', 'من عقارك إلى كل ما يرتبط به.')}</h2></div><div className="grid gap-4 sm:grid-cols-4"><div className="border-t border-[#506175] py-3"><span className="font-mono text-[9px] text-[#b5f06b]">01</span><p className="mt-3 text-[12px] font-semibold">{t('Property', 'العقار')}</p></div><div className="border-t border-[#506175] py-3"><span className="font-mono text-[9px] text-[#b5f06b]">02</span><p className="mt-3 text-[12px] font-semibold">{t('Unit', 'الوحدة')}</p></div><div className="border-t border-[#506175] py-3"><span className="font-mono text-[9px] text-[#b5f06b]">03</span><p className="mt-3 text-[12px] font-semibold">{t('Tenant & lease', 'المستأجر والعقد')}</p></div><div className="border-t border-[#506175] py-3"><span className="font-mono text-[9px] text-[#b5f06b]">04</span><p className="mt-3 text-[12px] font-semibold">{t('Manual rent record', 'سجل إيجار يدوي')}</p></div></div></div></section>
 
-      <section id="owners" className="relative overflow-hidden px-5 py-16 md:px-12 md:py-24 lg:px-[7.4%]"><div className="absolute -right-16 top-[-70px] h-[300px] w-[300px] border border-[#cbd6df] md:right-[6%] md:top-[-120px] md:h-[440px] md:w-[440px]" /><div className="relative mx-auto max-w-[1440px]"><div className="max-w-[590px]"><p className="font-mono text-[9px] uppercase tracking-[.14em] text-[#3f7cff]">03 / For owners</p><h2 className="mt-4 text-[clamp(2.4rem,5vw,4.6rem)] font-semibold leading-[.93] tracking-[-.075em]">Your portfolio,<br /><span className="text-[#3f7cff]">not a tangle of records.</span></h2><p className="mt-4 max-w-[360px] text-[13px] leading-5 text-[#586e83]">A focused way for independent landlords to organize properties and the rental details attached to them.</p></div><div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[#cbd6df] pt-4 font-mono text-[8px] uppercase tracking-[.07em] text-[#60768b]"><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> Owned properties & units</span><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> Lease agreements</span><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> Manual rent records</span></div><a href="#portfolio" className="group mt-6 inline-flex items-center gap-2 border-b border-[#3f7cff] pb-1.5 text-[11px] font-semibold text-[#214a83]">Back to the portfolio <ArrowDownRight size={14} className="transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" /></a></div></section>
+      <section id="owners" className="relative overflow-hidden px-5 py-16 md:px-12 md:py-24 lg:px-[7.4%]"><div className="absolute -end-16 top-[-70px] h-[300px] w-[300px] border border-[#cbd6df] md:end-[6%] md:top-[-120px] md:h-[440px] md:w-[440px]" /><div className="relative mx-auto max-w-[1440px]"><div className="max-w-[590px]"><p className="font-mono text-[9px] uppercase tracking-[.14em] text-[#3f7cff]">{t('03 / For owners', '03 / للملاك')}</p><h2 className="mt-4 text-[clamp(2.4rem,5vw,4.6rem)] font-semibold leading-[.93] tracking-[-.075em]">{t('Your portfolio,', 'محفظتك،')}<br /><span className="text-[#3f7cff]">{t('not a tangle of records.', 'لا فوضى من السجلات.')}</span></h2><p className="mt-4 max-w-[360px] text-[13px] leading-5 text-[#586e83]">{t('A focused way for independent landlords to organize properties and the rental details attached to them.', 'طريقة مركّزة للملاك المستقلين لتنظيم العقارات وتفاصيل الإيجار المرتبطة بها.')}</p></div><div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[#cbd6df] pt-4 font-mono text-[8px] uppercase tracking-[.07em] text-[#60768b]"><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> {t('Owned properties & units', 'العقارات والوحدات المملوكة')}</span><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> {t('Lease agreements', 'عقود الإيجار')}</span><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> {t('Manual rent records', 'سجلات الإيجار اليدوية')}</span></div><a href="#portfolio" className="group mt-6 inline-flex items-center gap-2 border-b border-[#3f7cff] pb-1.5 text-[11px] font-semibold text-[#214a83]">{t('Back to the portfolio', 'العودة إلى المحفظة')} <ArrowDownRight size={14} className="transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" /></a></div></section>
 
-      <footer className="border-t border-[#cbd6df] bg-[#dde6ed]"><div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-12 lg:px-[7.4%]"><Wordmark compact /><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#708398]">Your portfolio / clearly connected</p><p className="font-mono text-[8px] uppercase tracking-[.09em] text-[#8092a3]">© 2025 Rently</p></div></footer>
+      </>}
+
+      <footer className="border-t border-[#cbd6df] bg-[#dde6ed]"><div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-12 lg:px-[7.4%]"><Wordmark compact />{!user && <p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#708398]">{t('Your portfolio / clearly connected', 'محفظتك / مترابطة بوضوح')}</p>}<p className="font-mono text-[8px] uppercase tracking-[.09em] text-[#8092a3]" dir="ltr">© 2025 Rently</p></div></footer>
     </main>
   );
 }

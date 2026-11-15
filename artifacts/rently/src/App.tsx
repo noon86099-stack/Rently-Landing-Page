@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { RentlyHomepage } from '@/pages/rently-home';
+import { I18nProvider } from '@/lib/i18n';
 import {
   Route,
   Switch,
@@ -38,6 +39,7 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 
 function App() {
   return (
+    <I18nProvider>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
@@ -46,6 +48,7 @@ function App() {
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
+    </I18nProvider>
   );
 }
 

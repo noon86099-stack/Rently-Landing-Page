@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, FileText, RefreshCw, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { message, resolveMessage, useI18n, useLocalizedFormats, type LocalizedText, type UiMessage } from '@/lib/i18n';
 
 const BUCKET = 'rently-lease-documents';
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
@@ -16,19 +17,31 @@ type LeaseDocument = {
   created_at: string;
 };
 
-function errorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return 'تعذر إتمام العملية. حاول مرة أخرى.';
+class LocalizedError extends Error {
+  constructor(readonly ui: LocalizedText) {
+    super(ui.en);
+  }
 }
 
+function errorMessage(error: unknown): UiMessage {
+  if (error instanceof LocalizedError) return error.ui;
+  if (error instanceof Error && error.message) return error.message;
+  return message('The action could not be completed. Try again.', 'تعذر إتمام العملية. حاول مرة أخرى.');
+}
+
+const notConfigured = message('The Supabase connection is not fully set up.', 'إعداد اتصال Supabase غير مكتمل.');
+const savedNotice = message('The file for this lease was saved.', 'تم حفظ ملف العقد الخاص بهذا العقد.');
+
 export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
+  const { t, text } = useI18n();
+  const { formatDateTime } = useLocalizedFormats();
   const inputRef = useRef<HTMLInputElement>(null);
   const [document, setDocument] = useState<LeaseDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [error, setError] = useState<UiMessage>('');
+  const [notice, setNotice] = useState<UiMessage>('');
 
   useEffect(() => {
     let active = true;
@@ -36,7 +49,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
       setLoading(true);
       setError('');
       if (!supabase) {
-        setError('إعداد اتصال Supabase غير مكتمل.');
+        setError(notConfigured);
         setLoading(false);
         return;
       }
@@ -66,20 +79,20 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
     setError('');
     setNotice('');
     if (!supabase) {
-      setError('إعداد اتصال Supabase غير مكتمل.');
+      setError(notConfigured);
       return;
     }
     if (file.size < 1 || file.size > MAX_FILE_SIZE) {
-      setError('يجب أن يكون الملف PDF وألا يتجاوز 25 ميغابايت.');
+      setError(message('The file must be a PDF no larger than 25 MB.', 'يجب أن يكون الملف PDF وألا يتجاوز 25 ميغابايت.'));
       return;
     }
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      setError('ارفع ملفًا بصيغة PDF فقط.');
+      setError(message('Upload a PDF file only.', 'ارفع ملفًا بصيغة PDF فقط.'));
       return;
     }
     const signature = await file.slice(0, 5).text();
     if (signature !== '%PDF-') {
-      setError('تعذر التحقق من أن الملف مستند PDF صالح.');
+      setError(message('The file could not be verified as a valid PDF document.', 'تعذر التحقق من أن الملف مستند PDF صالح.'));
       return;
     }
 
@@ -89,7 +102,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
       const { data: authData, error: authError } =
         await supabase.auth.getUser();
       if (authError) throw authError;
-      if (!authData.user) throw new Error('سجّل الدخول لرفع عقد الإيجار.');
+      if (!authData.user) throw new LocalizedError(message('Sign in to upload the lease file.', 'سجّل الدخول لرفع عقد الإيجار.'));
 
       const { data: lease, error: leaseError } = await supabase
         .from('rently_leases')
@@ -99,7 +112,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
         .maybeSingle();
       if (leaseError) throw leaseError;
       if (!lease) {
-        throw new Error('العقد غير موجود أو لا تملك صلاحية الوصول إليه.');
+        throw new LocalizedError(message('The lease was not found or you do not have access to it.', 'العقد غير موجود أو لا تملك صلاحية الوصول إليه.'));
       }
 
       const { data: previous, error: previousError } = await supabase
@@ -145,14 +158,12 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
           .from(BUCKET)
           .remove([previous.storage_path]);
         if (removeError) {
-          setNotice(
-            'تم حفظ العقد الجديد، لكن تعذر حذف النسخة السابقة من التخزين.',
-          );
+          setNotice(message('The new file was saved, but the previous copy could not be removed from storage.', 'تم حفظ العقد الجديد، لكن تعذر حذف النسخة السابقة من التخزين.'));
         } else {
-          setNotice('تم حفظ ملف العقد الخاص بهذا العقد.');
+          setNotice(savedNotice);
         }
       } else {
-        setNotice('تم حفظ ملف العقد الخاص بهذا العقد.');
+        setNotice(savedNotice);
       }
     } catch (uploadError) {
       let cleanupFailed = false;
@@ -160,7 +171,13 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
         const cleanup = await supabase.storage.from(BUCKET).remove([newPath]);
         cleanupFailed = Boolean(cleanup.error);
       }
-      setError(`${errorMessage(uploadError)}${cleanupFailed ? ' تعذر تنظيف الملف غير المرتبط؛ لم يتم حفظه كعقد.' : ''}`);
+      const base = errorMessage(uploadError);
+      setError(cleanupFailed
+        ? message(
+          `${resolveMessage(base, 'en')} The unlinked file could not be cleaned up; it was not saved as the lease.`,
+          `${resolveMessage(base, 'ar')} تعذر تنظيف الملف غير المرتبط؛ لم يتم حفظه كعقد.`,
+        )
+        : base);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -198,18 +215,21 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
           <FileText size={15} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-semibold">ملف عقد الإيجار</p>
+          <p className="text-[12px] font-semibold">{t('Lease agreement file', 'ملف عقد الإيجار')}</p>
           {loading ? (
             <p data-testid="status-document-loading" className="mt-1 text-[11px] text-[#6b8094]">
-              جارٍ التحقق من الملف…
+              {t('Checking the file…', 'جارٍ التحقق من الملف…')}
             </p>
           ) : document ? (
-            <p data-testid={`text-document-name-${leaseId}`} className="mt-1 truncate text-[11px] text-[#536c83]">
-              {document.file_name}
+            <>
+            <p data-testid={`text-document-name-${leaseId}`} dir="auto" className="mt-1 truncate text-[11px] text-[#536c83]">
+              <bdi>{document.file_name}</bdi>
             </p>
+            <p className="mt-0.5 font-mono text-[9px] text-[#8192a3]"><bdi>{formatDateTime(document.created_at)}</bdi></p>
+            </>
           ) : (
             <p data-testid={`text-document-empty-${leaseId}`} className="mt-1 text-[11px] text-[#6b8094]">
-              لا يوجد ملف محفوظ لهذا العقد بعد.
+              {t('No file saved for this lease yet.', 'لا يوجد ملف محفوظ لهذا العقد بعد.')}
             </p>
           )}
         </div>
@@ -225,7 +245,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
             className="inline-flex h-9 items-center gap-2 bg-[#102238] px-3 text-[11px] font-semibold text-white hover:bg-[#214a83] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
           >
             <Download size={13} />
-            {downloading ? 'جارٍ تجهيز التنزيل…' : 'تنزيل العقد'}
+            {downloading ? t('Preparing download…', 'جارٍ تجهيز التنزيل…') : t('Download lease', 'تنزيل العقد')}
           </button>
         )}
         <button
@@ -236,7 +256,7 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
           className="inline-flex h-9 items-center gap-2 border border-[#c6d3df] bg-[#f4f7f9] px-3 text-[11px] font-semibold text-[#102238] hover:border-[#3f7cff] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
         >
           {uploading ? <RefreshCw size={13} className="animate-spin" /> : <Upload size={13} />}
-          {uploading ? 'جارٍ رفع الملف…' : document ? 'استبدال الملف' : 'رفع ملف العقد'}
+          {uploading ? t('Uploading file…', 'جارٍ رفع الملف…') : document ? t('Replace file', 'استبدال الملف') : t('Upload lease file', 'رفع ملف العقد')}
         </button>
         <input
           ref={inputRef}
@@ -255,9 +275,9 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
         <p
           role="alert"
           data-testid={`text-document-error-${leaseId}`}
-          className="mt-2 border-r-2 border-[#d4452c] bg-[#fbe9e5] px-2 py-1.5 text-[11px] text-[#a33421]"
+          className="mt-2 border-s-2 border-[#d4452c] bg-[#fbe9e5] px-2 py-1.5 text-[11px] text-[#a33421]"
         >
-          {error}
+          {text(error)}
         </p>
       )}
       {notice && (
@@ -265,11 +285,11 @@ export function LeaseDocumentControl({ leaseId }: { leaseId: string }) {
           data-testid={`text-document-notice-${leaseId}`}
           className="mt-2 text-[11px] text-[#1d6b45]"
         >
-          {notice}
+          {text(notice)}
         </p>
       )}
       <p className="mt-2 font-mono text-[9px] text-[#8192a3]">
-        خاص ومتاح للمالك فقط · PDF حتى 25 MB
+        {t('Private, owner access only · PDF up to 25 MB', 'خاص ومتاح للمالك فقط · PDF حتى 25 MB')}
       </p>
     </section>
   );

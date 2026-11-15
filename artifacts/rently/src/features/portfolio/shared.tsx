@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
+import { message, useI18n, type UiMessage } from '@/lib/i18n';
 
 export const labelCls = 'grid gap-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#667b8e]';
 export const inputCls =
@@ -28,7 +29,7 @@ export function useToday() {
   return today;
 }
 
-export function errorMessage(error: unknown, fallback = 'Request failed.') {
+export function errorMessage(error: unknown, fallback: UiMessage = message('Request failed.', 'تعذّر إكمال الطلب.')): UiMessage {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === 'string' && error) return error;
   return fallback;
@@ -48,17 +49,19 @@ export function formatMoney(value: number) {
   return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 }
 
-export function FormNotice({ error, success }: { error?: string; success?: string }) {
-  if (error) return <p role="alert" className="border-l-2 border-red-500 bg-red-50 px-2 py-1 text-[10px] text-red-800">{error}</p>;
-  if (success) return <p role="status" className="border-l-2 border-[#6aa83a] bg-[#eef6e6] px-2 py-1 text-[10px] text-[#3d6324]">{success}</p>;
+export function FormNotice({ error, success }: { error?: UiMessage; success?: UiMessage }) {
+  const { text } = useI18n();
+  if (error) return <p role="alert" className="border-s-2 border-red-500 bg-red-50 px-2 py-1 text-[10px] text-red-800">{text(error)}</p>;
+  if (success) return <p role="status" className="border-s-2 border-[#6aa83a] bg-[#eef6e6] px-2 py-1 text-[10px] text-[#3d6324]">{text(success)}</p>;
   return null;
 }
 
-export function Panel({ code, title, children, action }: { code: string; title: string; children: ReactNode; action?: ReactNode }) {
+export function Panel({ code, title, children, action }: { code: string; title: UiMessage; children: ReactNode; action?: ReactNode }) {
+  const { text } = useI18n();
   return (
     <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3">
       <div className="mb-2.5 flex items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-[10px] font-bold"><span className="font-mono text-[7px] font-normal tracking-[.1em] text-[#3f7cff]">{code}</span>{title}</p>
+        <p className="flex items-center gap-2 text-[10px] font-bold"><span className="font-mono text-[7px] font-normal tracking-[.1em] text-[#3f7cff]">{code}</span>{text(title)}</p>
         {action}
       </div>
       {children}

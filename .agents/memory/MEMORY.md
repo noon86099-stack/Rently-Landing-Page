@@ -1,2 +1,2 @@
-- [Rently visual direction](visual-direction.md) — The user wants a more technical look, less text, and a distinctive brand.
+- [Rently visual direction](visual-direction.md) — Technical branding, concise data-first owner workspace after sign-in, and an Arabic/English language choice.
 - [Rently Supabase and rent rules](supabase-rent-rules.md) — Use the Rently Supabase project with email/password Auth; monthly dues follow lease day, clamped to month-end.
