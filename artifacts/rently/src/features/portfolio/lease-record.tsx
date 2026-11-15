@@ -6,7 +6,7 @@ import type { Lease, Payment } from '@/lib/rently-data';
 import { LeaseDocumentControl } from '@/features/leases/lease-document-control';
 import { PaymentCorrection } from './payment-correction';
 import { message, useI18n, useLocalizedFormats, type UiMessage } from '@/lib/i18n';
-import { FormNotice, authRequest, errorMessage, ghostBtn, inputCls, invalidatePortfolio } from './shared';
+import { FormNotice, authRequest, errorMessage, ghostBtn, invalidatePortfolio } from './shared';
 
 type Ctx = { token: string; userId: string; propertyId: string; today: string };
 
@@ -19,20 +19,16 @@ function statusOf(p: Payment, today: string) {
 
 function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
   const qc = useQueryClient();
-  const { t, text, direction, locale } = useI18n();
+  const { t, text, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
-  const [paidAt, setPaidAt] = useState(ctx.today);
   const [error, setError] = useState<UiMessage>('');
   const record = useRecordRentlyPayment({ request: authRequest(ctx.token) });
   const s = statusOf(payment, ctx.today);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function recordPayment() {
     setError('');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(paidAt)) { setError(message('Pick a date.', 'اختر تاريخًا.')); return; }
-    if (paidAt > ctx.today) { setError(message('Paid date cannot be in the future.', 'لا يمكن أن يكون تاريخ الدفع في المستقبل.')); return; }
     try {
-      await record.mutateAsync({ paymentId: payment.id, data: { paidAt } });
+      await record.mutateAsync({ paymentId: payment.id, data: { paidAt: ctx.today } });
       await invalidatePortfolio(qc, ctx.userId, ctx.propertyId);
     } catch (err) {
       setError(errorMessage(err, message('Payment could not be recorded.', 'تعذّر تسجيل الدفعة.')));
@@ -47,13 +43,19 @@ function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
       {payment.paid_at ? (
         <PaymentCorrection payment={payment} ctx={ctx} />
       ) : (
-        <form onSubmit={submit} noValidate className="grid gap-1">
-          <div className="flex gap-1">
-            <input data-testid={`input-paid-at-${payment.id}`} aria-label={t('Paid date', 'تاريخ الدفع')} dir={direction} lang={locale} type="date" max={ctx.today} value={paidAt} aria-invalid={!!error} onChange={(e) => setPaidAt(e.target.value)} className={`${inputCls} min-h-7 text-[11px]`} />
-            <button data-testid={`button-record-payment-${payment.id}`} disabled={record.isPending} className={ghostBtn}>{record.isPending && <LoaderCircle size={10} className="animate-spin" />}{t('Record', 'تسجيل')}</button>
-          </div>
+        <div className="grid gap-1">
+          <button
+            type="button"
+            data-testid={`button-record-payment-${payment.id}`}
+            disabled={record.isPending}
+            onClick={() => void recordPayment()}
+            className={ghostBtn}
+          >
+            {record.isPending && <LoaderCircle size={10} className="animate-spin" />}
+            {t('Mark paid today', 'تسجيل كمدفوع اليوم')}
+          </button>
           <FormNotice error={error} />
-        </form>
+        </div>
       )}
     </li>
   );

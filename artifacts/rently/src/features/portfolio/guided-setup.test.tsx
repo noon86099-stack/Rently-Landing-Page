@@ -4,9 +4,11 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/lib/i18n';
+import type { Lease } from '@/lib/rently-data';
 import { GuidedSetup, SetupCompletion } from './guided-setup';
 import { AddUnitForm } from './add-unit-form';
 import { CreateLeaseForm } from './create-lease-form';
+import { LeaseRecord } from './lease-record';
 import { PROPERTY_TYPE_LABELS } from './create-property-form';
 import { setupErrorMessage } from './setup-request';
 
@@ -109,6 +111,30 @@ test('completion screen confirms the saved file and displays scheduled due dates
   assert.match(ar, /يوم الاستحقاق الشهري/);
   assert.match(ar, /مواعيد الاستحقاق المحفوظة/);
   assert.match(ar, /05 مايو 2026/);
+});
+
+test('payment recording uses today and no longer asks for a paid date', () => {
+  const lease: Lease = {
+    id: 'lease-a',
+    start_date: '2026-01-01',
+    end_date: '2026-12-31',
+    status: 'active',
+    monthly_rent: 12000,
+    due_day: 5,
+    payments: [{ id: 'payment-a', due_date: '2026-11-01', amount: 12000, paid_at: null }],
+    tenants: { full_name: 'Sample Tenant', email: null, phone: null },
+  };
+  const row = createElement(LeaseRecord, {
+    lease,
+    ctx: { token: 'unused', userId: 'owner-a', propertyId: 'property-a', today: '2026-11-16' },
+  });
+
+  const en = render('en', row);
+  const ar = render('ar', row);
+  assert.match(en, /Mark paid today/);
+  assert.match(ar, /تسجيل كمدفوع اليوم/);
+  assert.doesNotMatch(en, /input-paid-at-/);
+  assert.doesNotMatch(ar, /input-paid-at-/);
 });
 
 test('safe retry errors are available in both languages without leaking upstream details', () => {
