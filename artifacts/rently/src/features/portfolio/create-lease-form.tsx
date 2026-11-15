@@ -67,7 +67,7 @@ export function CreateLeaseForm({ token, userId, propertyId, units }: { token: s
     }
   }
 
-  if (units.length === 0) return <p className="text-[9px] text-[#718398]">Add a unit first.</p>;
+  if (units.length === 0) return <p dir="rtl" className="text-[11px] leading-5 text-[#718398]">احفظ وحدة من قسم Add unit أعلاه ليظهر نموذج إضافة المستأجر والعقد.</p>;
 
   return (
     <form onSubmit={submit} noValidate className="grid gap-2" aria-label="New lease">
