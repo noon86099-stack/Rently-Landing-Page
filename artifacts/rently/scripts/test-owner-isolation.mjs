@@ -23,11 +23,14 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
 
 const createdOwners = [];
 const createdRows = {
+  lease_documents: [],
   rently_leases: [],
   rently_units: [],
   rently_properties: [],
   rently_tenants: [],
 };
+const createdStoragePaths = [];
+const leaseDocumentBucket = "rently-lease-documents";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -147,8 +150,122 @@ async function assertTableIsolation(owner, otherOwnerFixtures, ownFixtures) {
   }
 }
 
+async function createLeaseDocumentFixture(owner, leaseId) {
+  const storagePath = `${owner.id}/${leaseId}/${randomUUID()}.pdf`;
+  const fileBytes = new TextEncoder().encode(
+    "%PDF-1.4\nRently isolation fixture\n%%EOF\n",
+  );
+  const { error: uploadError } = await owner.client.storage
+    .from(leaseDocumentBucket)
+    .upload(storagePath, fileBytes, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+  if (uploadError) {
+    throw new Error(
+      `${owner.label} could not upload its lease document: ${uploadError.message}`,
+    );
+  }
+  createdStoragePaths.push(storagePath);
+
+  const { data, error } = await owner.client
+    .from("lease_documents")
+    .insert({
+      owner_id: owner.id,
+      lease_id: leaseId,
+      storage_path: storagePath,
+      file_name: "isolation-fixture.pdf",
+      content_type: "application/pdf",
+      file_size: fileBytes.byteLength,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    throw new Error(
+      `${owner.label} could not create its lease document metadata: ${error.message}`,
+    );
+  }
+  if (!data?.id) {
+    throw new Error(
+      `Supabase returned no id for ${owner.label}'s lease document metadata.`,
+    );
+  }
+  createdRows.lease_documents.push(data.id);
+
+  return { id: data.id, storagePath, fileBytes };
+}
+
+async function assertLeaseDocumentIsolation(owner, otherDocument, ownDocument) {
+  const { data: ownRows, error: ownMetadataError } = await owner.client
+    .from("lease_documents")
+    .select("id, owner_id, storage_path")
+    .eq("id", ownDocument.id);
+  if (ownMetadataError) {
+    throw new Error(
+      `${owner.label} could not read its lease document metadata: ${ownMetadataError.message}`,
+    );
+  }
+  assert(
+    ownRows?.length === 1 &&
+      ownRows[0].owner_id === owner.id &&
+      ownRows[0].storage_path === ownDocument.storagePath,
+    `${owner.label} could not read its own lease document metadata.`,
+  );
+
+  const { data: otherRows, error: otherMetadataError } = await owner.client
+    .from("lease_documents")
+    .select("id")
+    .eq("id", otherDocument.id);
+  if (otherMetadataError) {
+    throw new Error(
+      `${owner.label} could not check lease document metadata isolation: ${otherMetadataError.message}`,
+    );
+  }
+  assert(
+    otherRows?.length === 0,
+    `${owner.label} can read another owner's lease document metadata.`,
+  );
+
+  const { data: ownFile, error: ownFileError } = await owner.client.storage
+    .from(leaseDocumentBucket)
+    .download(ownDocument.storagePath);
+  if (ownFileError || !ownFile) {
+    throw new Error(
+      `${owner.label} could not download its lease document: ${ownFileError?.message ?? "no file returned"}`,
+    );
+  }
+  const downloadedBytes = new Uint8Array(await ownFile.arrayBuffer());
+  assert(
+    downloadedBytes.length === ownDocument.fileBytes.length &&
+      downloadedBytes.every(
+        (byte, index) => byte === ownDocument.fileBytes[index],
+      ),
+    `${owner.label} downloaded unexpected contents for its lease document.`,
+  );
+
+  const { data: otherFile, error: otherFileError } = await owner.client.storage
+    .from(leaseDocumentBucket)
+    .download(otherDocument.storagePath);
+  assert(
+    Boolean(otherFileError) && !otherFile,
+    `${owner.label} can download another owner's lease document.`,
+  );
+}
+
 async function cleanup() {
   const errors = [];
+
+  if (createdStoragePaths.length > 0) {
+    try {
+      const { error } = await admin.storage
+        .from(leaseDocumentBucket)
+        .remove(createdStoragePaths);
+      if (error)
+        errors.push(`Could not remove lease document files: ${error.message}`);
+    } catch (error) {
+      errors.push(`Could not remove lease document files: ${error.message}`);
+    }
+  }
 
   for (const [table, ids] of Object.entries(createdRows)) {
     if (ids.length === 0) continue;
@@ -189,9 +306,19 @@ try {
   const ownerB = await createOwner("B", "b");
   const fixturesA = await createOwnerFixtures(ownerA, "A");
   const fixturesB = await createOwnerFixtures(ownerB, "B");
+  const leaseDocumentA = await createLeaseDocumentFixture(
+    ownerA,
+    fixturesA.rently_leases,
+  );
+  const leaseDocumentB = await createLeaseDocumentFixture(
+    ownerB,
+    fixturesB.rently_leases,
+  );
 
   await assertTableIsolation(ownerA, fixturesB, fixturesA);
   await assertTableIsolation(ownerB, fixturesA, fixturesB);
+  await assertLeaseDocumentIsolation(ownerA, leaseDocumentB, leaseDocumentA);
+  await assertLeaseDocumentIsolation(ownerB, leaseDocumentA, leaseDocumentB);
 } catch (error) {
   testFailure = error;
 }
@@ -206,7 +333,7 @@ if (cleanupErrors.length > 0) {
 }
 if (!testFailure && cleanupErrors.length === 0) {
   console.log(
-    "Owner isolation passed: both accounts read their own properties, units, tenants, and leases only. Test data and accounts were removed.",
+    "Owner isolation passed: both accounts read their own properties, units, tenants, leases, lease document metadata, and lease document files only. Test data and accounts were removed.",
   );
 }
 
