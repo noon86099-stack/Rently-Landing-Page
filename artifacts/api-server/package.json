@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:rently": "tsx --test tests/*.test.ts"
+    "test:rently": "tsx --test tests/*.test.ts",
+    "test:rently-ui": "node tests/run-rently-ui.mjs"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

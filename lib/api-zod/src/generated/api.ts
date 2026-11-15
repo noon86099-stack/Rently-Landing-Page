@@ -33,6 +33,7 @@ export const createRentlyPropertyBodyPropertyTypeMax = 80;
 
 
 export const CreateRentlyPropertyBody = zod.object({
+  "requestId": zod.string().uuid().optional().describe('Stable creation identifier reused on retries'),
   "name": zod.string().min(1).max(createRentlyPropertyBodyNameMax),
   "streetAddress": zod.string().max(createRentlyPropertyBodyStreetAddressMax).nullish(),
   "city": zod.string().max(createRentlyPropertyBodyCityMax).nullish(),
@@ -62,6 +63,7 @@ export const createRentlyUnitBodyUnitLabelMax = 80;
 
 
 export const CreateRentlyUnitBody = zod.object({
+  "requestId": zod.string().uuid().optional().describe('Stable creation identifier reused on retries'),
   "unitLabel": zod.string().min(1).max(createRentlyUnitBodyUnitLabelMax)
 })
 
@@ -87,6 +89,7 @@ export const createRentlyLeaseBodyDueDayMax = 31;
 
 
 export const CreateRentlyLeaseBody = zod.object({
+  "requestId": zod.string().uuid().optional().describe('Stable creation identifier reused on retries'),
   "unitId": zod.string().uuid(),
   "tenantFullName": zod.string().min(1).max(createRentlyLeaseBodyTenantFullNameMax),
   "tenantEmail": zod.string().email().nullish(),

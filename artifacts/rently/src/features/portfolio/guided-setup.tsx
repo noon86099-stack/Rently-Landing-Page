@@ -1,0 +1,169 @@
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft, Check, LoaderCircle, RotateCcw } from 'lucide-react';
+import type { RentlyLease } from '@workspace/api-client-react';
+import { loadOwnerProperties, loadPropertyDetails } from '@/lib/rently-data';
+import { CreatePropertyForm } from './create-property-form';
+import { AddUnitForm } from './add-unit-form';
+import { CreateLeaseForm } from './create-lease-form';
+import { useI18n, useLocalizedFormats } from '@/lib/i18n';
+
+type Props = { token: string; userId: string; onOpenRecords: (propertyId: string) => void };
+
+const chip = 'border px-2 py-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] disabled:opacity-50';
+
+function StepHead({ n, title, state, saved }: { n: string; title: string; state: 'done' | 'active' | 'locked'; saved?: string }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className={`grid h-6 w-6 shrink-0 place-items-center font-mono text-[10px] ${state === 'done' ? 'bg-[#b5f06b] text-[#102238]' : state === 'active' ? 'bg-[#3f7cff] text-white' : 'border border-[#c5d2de] text-[#8192a3]'}`}>{state === 'done' ? <Check size={12} /> : n}</span>
+      <p className={`text-[13px] font-semibold ${state === 'locked' ? 'text-[#8192a3]' : ''}`}>{title}</p>
+      {saved && <span data-testid={`text-saved-step-${n}`} className="ms-auto truncate border border-[#cfe0bb] bg-[#eef6e6] px-2 py-0.5 text-[11px] text-[#3d6324]">{t('Saved:', 'محفوظ:')} <bdi>{saved}</bdi></span>}
+    </div>
+  );
+}
+
+export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
+  const { t, direction } = useI18n();
+  const { formatDate, formatMoney } = useLocalizedFormats();
+  const [propertyId, setPropertyId] = useState<string | null>(null);
+  const [unitId, setUnitId] = useState<string | null>(null);
+  const [newProperty, setNewProperty] = useState(false);
+  const [newUnit, setNewUnit] = useState(false);
+  const [lease, setLease] = useState<RentlyLease | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const props = useQuery({ queryKey: ['rently-properties', userId], queryFn: () => loadOwnerProperties(userId), staleTime: 0 });
+  const details = useQuery({
+    queryKey: ['rently-property-details', userId, propertyId],
+    queryFn: () => loadPropertyDetails(userId, propertyId!),
+    enabled: Boolean(propertyId),
+    staleTime: 0,
+  });
+
+  const property = props.data?.find((p) => p.id === propertyId);
+  const unit = details.data?.units.find((u) => u.id === unitId);
+  const properties = props.data ?? [];
+  const showPropertyForm = newProperty || (props.isSuccess && properties.length === 0);
+  const units = details.data?.units ?? [];
+  const showUnitForm = newUnit || (details.isSuccess && units.length === 0);
+
+  function pickProperty(id: string) { setPropertyId(id); setUnitId(null); setLease(null); setNewProperty(false); setNewUnit(false); }
+  function pickUnit(id: string) { setUnitId(id); setLease(null); setNewUnit(false); }
+  function restart() { setPropertyId(null); setUnitId(null); setLease(null); setNewProperty(false); setNewUnit(false); }
+
+  const next = !propertyId ? t('Choose a saved property or add a new one.', 'اختر عقارًا محفوظًا أو أضف عقارًا جديدًا.') : !unitId ? t('Choose or add a unit in this property.', 'اختر وحدة في هذا العقار أو أضف وحدة.') : !lease ? t('Add the tenant and lease for this unit.', 'أضف المستأجر وبيانات العقد لهذه الوحدة.') : t('Setup complete. Review the records and record rent when received.', 'اكتمل الإعداد. راجع السجلات وسجّل الإيجار عند استلامه.');
+
+  return (
+    <section dir={direction} id="setup" data-testid="section-guided-setup" className="mt-3 border border-[#3f7cff]/40 bg-[#f8fafb] text-start">
+      <fieldset disabled={saving} aria-busy={saving} className="min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#d8e1e8] bg-[#102238] px-3 py-2.5 text-[#f0f5f8] md:px-4">
+        <div>
+          <p className="text-[14px] font-semibold">{t('Guided setup: property → unit → tenant and lease', 'إعداد موجّه: عقار ← وحدة ← مستأجر وعقد')}</p>
+          <p data-testid="text-next-action" className="mt-0.5 text-[11px] text-[#b5f06b]">{t('Next:', 'الخطوة التالية:')} {next}</p>
+        </div>
+        {(propertyId || lease) && <button type="button" data-testid="button-restart-setup" onClick={restart} className="inline-flex items-center gap-1.5 border border-[#506175] px-2 py-1 text-[11px] hover:border-[#b5f06b]"><RotateCcw size={12} />{t('Start over', 'بدء من جديد')}</button>}
+      </div>
+
+      <div className="grid gap-0 divide-y divide-[#dce3e9]">
+        {/* Step 1 */}
+        <div className="p-3 md:p-4">
+          <StepHead n="1" title={t('Property', 'العقار')} state={property ? 'done' : 'active'} saved={property?.name} />
+          {!property && (
+            <div className="mt-3 grid gap-2">
+              {props.isPending ? (
+                <div role="status" aria-label={t('Loading properties', 'جارٍ تحميل العقارات')} className="flex gap-2">{[0, 1, 2].map((i) => <div key={i} className="h-8 w-24 animate-pulse bg-[#e4ebf1]" />)}</div>
+              ) : props.isError ? (
+                <p role="alert" className="text-[11px] text-red-700">{t('Could not load your properties.', 'تعذّر تحميل عقاراتك.')} <button type="button" onClick={() => void props.refetch()} className="underline">{t('Retry', 'إعادة المحاولة')}</button></p>
+              ) : (
+                <>
+                  {properties.length > 0 && !newProperty && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {properties.map((p) => (
+                        <button key={p.id} type="button" data-testid={`button-setup-property-${p.id}`} onClick={() => pickProperty(p.id)} className={`${chip} border-[#cbd7e1] bg-white hover:border-[#3f7cff]`}><bdi>{p.name}</bdi> <span className="font-mono text-[9px] text-[#8192a3]">{p.units.length} {t('units', 'وحدات')}</span></button>
+                      ))}
+                      <button type="button" data-testid="button-setup-new-property" onClick={() => setNewProperty(true)} className={`${chip} border-dashed border-[#3f7cff] text-[#315b91]`}>{t('+ New property', '+ عقار جديد')}</button>
+                    </div>
+                  )}
+                  {showPropertyForm && (
+                    <div className="border border-[#d8e1e8] bg-white p-3">
+                      {properties.length === 0 && <p className="mb-2 text-[11px] text-[#667b8e]">{t('No properties yet. Save your first property.', 'لا توجد عقارات بعد. ابدأ بحفظ أول عقار.')}</p>}
+                      <CreatePropertyForm embedded token={token} userId={userId} onCreated={pickProperty} onSavingChange={setSaving} />
+                      {newProperty && <button type="button" onClick={() => setNewProperty(false)} className="mt-2 text-[11px] text-[#315b91] underline">{t('Choose a saved property instead', 'العودة لاختيار عقار محفوظ')}</button>}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {propertyId && !property && props.isSuccess && <p className="mt-2 text-[11px] text-[#667b8e]">{t('Saved. Updating the list…', 'تم الحفظ. جارٍ تحديث القائمة…')} <button type="button" onClick={() => void props.refetch()} className="underline">{t('Refresh', 'تحديث')}</button></p>}
+          {property && <button type="button" onClick={restart} className="mt-2 text-[11px] text-[#315b91] underline">{t('Change property', 'تغيير العقار')}</button>}
+        </div>
+
+        {/* Step 2 */}
+        <div className="p-3 md:p-4">
+          <StepHead n="2" title={t('Unit', 'الوحدة')} state={!propertyId ? 'locked' : unit ? 'done' : 'active'} saved={unit?.unit_label} />
+          {propertyId && !unit && (
+            <div className="mt-3 grid gap-2">
+              {details.isPending ? (
+                <div role="status" aria-label={t('Loading units', 'جارٍ تحميل الوحدات')} className="flex gap-2">{[0, 1].map((i) => <div key={i} className="h-8 w-24 animate-pulse bg-[#e4ebf1]" />)}</div>
+              ) : details.isError ? (
+                <p role="alert" className="text-[11px] text-red-700">{t('Could not load units for this property.', 'تعذّر تحميل وحدات هذا العقار.')} <button type="button" onClick={() => void details.refetch()} className="underline">{t('Retry', 'إعادة المحاولة')}</button></p>
+              ) : (
+                <>
+                  {unitId && <p className="text-[11px] text-[#667b8e]">{t('Unit saved. Updating the list…', 'تم حفظ الوحدة. جارٍ تحديث القائمة…')} <button type="button" onClick={() => void details.refetch()} className="underline">{t('Refresh', 'تحديث')}</button></p>}
+                  {units.length > 0 && !newUnit && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {units.map((u) => (
+                        <button key={u.id} type="button" data-testid={`button-setup-unit-${u.id}`} onClick={() => pickUnit(u.id)} className={`${chip} border-[#cbd7e1] bg-white hover:border-[#3f7cff]`}><bdi>{u.unit_label}</bdi> <span className="text-[10px] text-[#8192a3]">{u.leases.length ? `${u.leases.length} ${t('leases', 'عقود')}` : t('Vacant', 'شاغرة')}</span></button>
+                      ))}
+                      <button type="button" data-testid="button-setup-new-unit" onClick={() => setNewUnit(true)} className={`${chip} border-dashed border-[#3f7cff] text-[#315b91]`}>{t('+ New unit', '+ وحدة جديدة')}</button>
+                    </div>
+                  )}
+                  {showUnitForm && (
+                    <div className="border border-[#d8e1e8] bg-white p-3">
+                      <AddUnitForm key={propertyId} token={token} userId={userId} propertyId={propertyId} onCreated={pickUnit} onSavingChange={setSaving} />
+                      {newUnit && <button type="button" onClick={() => setNewUnit(false)} className="mt-2 text-[11px] text-[#315b91] underline">{t('Choose a saved unit instead', 'العودة لاختيار وحدة محفوظة')}</button>}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {unit && !lease && <button type="button" onClick={() => setUnitId(null)} className="mt-2 text-[11px] text-[#315b91] underline">{t('Change unit', 'تغيير الوحدة')}</button>}
+        </div>
+
+        {/* Step 3 */}
+        <div className="p-3 md:p-4">
+          <StepHead n="3" title={t('Tenant and lease', 'المستأجر والعقد')} state={!unit ? 'locked' : lease ? 'done' : 'active'} saved={lease?.tenant.fullName} />
+          {unit && !lease && propertyId && details.data && (
+            <div className="mt-3 border border-[#d8e1e8] bg-white p-3">
+              {details.data.rentSetupRequired ? (
+                <p role="alert" className="border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">{t('Apply the database update before adding a lease. Existing records remain available.', 'إدارة الإيجار تحتاج إلى تحديث قاعدة البيانات قبل إضافة عقد. سجلاتك الحالية ما زالت متاحة.')}</p>
+              ) : (
+                <CreateLeaseForm key={unit.id} token={token} userId={userId} propertyId={propertyId} units={[unit]} initialUnitId={unit.id} onCreated={(_id, l) => setLease(l)} onSavingChange={setSaving} />
+              )}
+            </div>
+          )}
+          {lease && propertyId && (
+            <div data-testid="card-lease-summary" className="mt-3 border border-[#cfe0bb] bg-[#f3f9ec] p-3">
+              <p className="text-[12px] font-semibold text-[#3d6324]">{t('The lease was saved in your records.', 'تم حفظ العقد في سجلاتك.')}</p>
+              <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] sm:grid-cols-4">
+                <div><dt className="text-[#667b8e]">{t('Property / unit', 'العقار / الوحدة')}</dt><dd className="font-semibold"><bdi>{property?.name ?? ''}</bdi> / <bdi>{unit?.unit_label ?? ''}</bdi></dd></div>
+                <div><dt className="text-[#667b8e]">{t('Term', 'المدة')}</dt><dd className="font-semibold">{formatDate(lease.startDate)} - {formatDate(lease.endDate)}</dd></div>
+                <div><dt className="text-[#667b8e]">{t('Monthly rent', 'الإيجار الشهري')}</dt><dd className="font-semibold">{formatMoney(lease.monthlyRent)} ({t('day', 'يوم')} {lease.dueDay})</dd></div>
+                <div><dt className="text-[#667b8e]">{t('Dues', 'المستحقات')}</dt><dd className="font-semibold">{lease.payments.length} {t('monthly payments', 'دفعة شهرية')}</dd></div>
+              </dl>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" data-testid="button-open-records" onClick={() => onOpenRecords(propertyId)} className="inline-flex items-center gap-1.5 bg-[#102238] px-3 py-2 text-[11px] font-semibold text-white">{t('View records and manage lease', 'عرض السجلات وإدارة العقد')} <ArrowLeft size={12} className="ltr:rotate-180" /></button>
+                <button type="button" onClick={() => { setUnitId(null); setLease(null); }} className="border border-[#c5d4e0] px-3 py-2 text-[11px] text-[#315b91]">{t('Lease for another unit', 'عقد لوحدة أخرى')}</button>
+              </div>
+            </div>
+          )}
+          {details.isFetching && propertyId && <span className="sr-only"><LoaderCircle /></span>}
+        </div>
+      </div>
+      </fieldset>
+    </section>
+  );
+}

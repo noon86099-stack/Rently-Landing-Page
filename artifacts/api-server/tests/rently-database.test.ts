@@ -41,6 +41,9 @@ async function database() {
   const corrections = await readFile(new URL("supabase/migrations/20261116000200_rently_payment_corrections.sql", root), "utf8");
   await db.exec(corrections);
   await db.exec(corrections);
+  const setup = await readFile(new URL("supabase/migrations/20261116000300_rently_setup_retries.sql", root), "utf8");
+  await db.exec(setup);
+  await db.exec(setup);
   await db.exec(`
     insert into public.rently_properties (id,owner_id,name) values ('${property}','${owner}','Test property');
     insert into public.rently_units (id,owner_id,property_id,unit_label) values ('${unit}','${owner}','${property}','A');
@@ -62,6 +65,68 @@ async function lease(db: PGlite, start = "2028-01-31", end = "2028-04-30", day =
     [unit, start, end, day],
   );
 }
+
+test("guided setup retries return saved ids without duplicate properties, units, tenants or dues", async () => {
+  const db = await database();
+  try {
+    await asOwner(db, owner);
+    const create = async (request: string, kind: string, payload: object) =>
+      (await db.query<{ id: string }>("select public.create_rently_setup_record($1,$2,$3::jsonb) as id", [request,kind,JSON.stringify(payload)])).rows[0].id;
+    const propertyRequest = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const unitRequest = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const leaseRequest = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    const p = { name: "عمارة", propertyType: "Apartment" };
+    const pid = await create(propertyRequest, "property", p);
+    assert.equal(await create(propertyRequest, "property", p), pid);
+    await assert.rejects(create(propertyRequest, "property", { ...p,name:"Changed" }), /different data/);
+    const u = { propertyId:pid,unitLabel:"شقة 1" };
+    const uid = await create(unitRequest, "unit", u);
+    assert.equal(await create(unitRequest, "unit", u), uid);
+    const l = { unitId:uid,tenantFullName:"مستأجر تجريبي",tenantEmail:null,tenantPhone:null,
+      startDate:"2028-01-31",endDate:"2028-04-30",monthlyRent:1500,dueDay:31 };
+    const lid = await create(leaseRequest, "lease", l);
+    // Simulates a committed request whose HTTP response was lost.
+    assert.equal(await create(leaseRequest, "lease", l), lid);
+    assert.equal((await db.query("select * from public.rently_properties")).rows.length, 2);
+    assert.equal((await db.query("select * from public.rently_units")).rows.length, 2);
+    assert.equal((await db.query("select * from public.rently_tenants")).rows.length, 1);
+    assert.equal((await db.query("select * from public.rently_leases")).rows.length, 1);
+    assert.equal((await db.query("select * from public.rently_payments")).rows.length, 4);
+    await assert.rejects(db.query("select * from public.rently_creation_requests"), /permission/);
+    await assert.rejects(db.query("delete from public.rently_creation_requests"), /permission/);
+
+    await asOwner(db, other);
+    await assert.rejects(create(unitRequest, "unit", u), /not found/);
+    await assert.rejects(create(leaseRequest, "lease", l), /not found/);
+    // Request keys are isolated by owner, never a way to retrieve another owner's id.
+    const otherPid = await create(propertyRequest, "property", p);
+    assert.notEqual(otherPid, pid);
+    assert.equal((await db.query("select * from public.rently_properties")).rows.length, 1);
+    await asOwner(db, "");
+    await assert.rejects(create(propertyRequest, "property", p), /Authentication/);
+    await db.exec("set role anon");
+    await assert.rejects(create(propertyRequest, "property", p), /permission/);
+  } finally { await db.close(); }
+});
+
+test("failed setup creates neither a receipt nor an orphan tenant and permits a corrected retry", async () => {
+  const db = await database();
+  try {
+    await asOwner(db, owner);
+    const request = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    const input = { unitId:unit,tenantFullName:"Tenant",startDate:"2028-01-16",
+      endDate:"2028-01-20",monthlyRent:1500,dueDay:1 };
+    const create = (payload: object) => db.query(
+      "select public.create_rently_setup_record($1,'lease',$2::jsonb) as id", [request,JSON.stringify(payload)]);
+    await assert.rejects(create(input), /No due date/);
+    assert.equal((await db.query("select * from public.rently_tenants")).rows.length, 0);
+    assert.equal((await db.query("select * from public.rently_leases")).rows.length, 0);
+    const saved = await create({ ...input,endDate:"2028-03-20" });
+    assert.ok(saved.rows[0].id);
+    await db.exec("reset role");
+    assert.equal((await db.query("select * from public.rently_creation_requests")).rows.length, 1);
+  } finally { await db.close(); }
+});
 
 test("contract schedule clamps short months and retains the original due day", async () => {
   const db = await database();

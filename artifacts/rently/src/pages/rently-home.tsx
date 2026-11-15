@@ -9,6 +9,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { CreateLeaseForm } from '@/features/portfolio/create-lease-form';
 import { LeaseRecord } from '@/features/portfolio/lease-record';
+import { GuidedSetup } from '@/features/portfolio/guided-setup';
 import { Panel, useToday } from '@/features/portfolio/shared';
 
 function RentlyMark({ inverse = false, size = 40 }: { inverse?: boolean; size?: number }) {
@@ -285,6 +286,9 @@ export function RentlyHomepage() {
               {!user && <span className="border border-[#c5d4e0] bg-[#e8f0f6] px-2 py-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#44627e]">{t('Sign in required', 'يلزم تسجيل الدخول')}</span>}
             </div>
 
+            {user && token && supabaseConfigured && (
+              <GuidedSetup key={user.id} token={token} userId={user.id} onOpenRecords={(id) => { setSelectedPropertyId(id); window.setTimeout(() => document.getElementById('records')?.scrollIntoView({ behavior: 'smooth' }), 50); }} />
+            )}
             <div className={user ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(300px,.42fr)_1fr] xl:items-start' : ''}>
             <div id="portfolio" className="mt-3 border border-[#cdd9e3] bg-[#e7eef4] p-3 md:p-4">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-2 px-1">
@@ -318,7 +322,7 @@ export function RentlyHomepage() {
               ) : propertiesQuery.data?.length === 0 ? (
                 <div className="border border-[#d7e0e7] bg-[#f7f9fb] p-4">
                   <p className="text-[11px] font-semibold">{t('No properties yet.', 'لا توجد عقارات بعد.')}</p>
-                  <p className="mt-1 text-[9px] text-[#718398]">{t('Use Add property to add the first one.', 'استخدم «إضافة عقار» لإضافة أول عقار.')}</p>
+                  <p className="mt-1 text-[9px] text-[#718398]">{t('Use the guided setup above or Add property.', 'استخدم الإعداد الموجّه أعلاه أو «إضافة عقار».')}</p>
                 </div>
               ) : (
                 <>

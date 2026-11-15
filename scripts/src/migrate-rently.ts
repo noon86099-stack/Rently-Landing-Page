@@ -10,6 +10,7 @@ const root = new URL("../../", import.meta.url);
 const migrationNames = [
   "20261116000100_rently_rent_management.sql",
   "20261116000200_rently_payment_corrections.sql",
+  "20261116000300_rently_setup_retries.sql",
 ];
 const connectionString = process.env.SUPABASE_DB_URL;
 if (!connectionString) {

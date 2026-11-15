@@ -239,6 +239,7 @@ components:
       type: object
       required: [name, propertyType]
       properties:
+        requestId: { type: string, format: uuid, description: Stable creation identifier reused on retries }
         name: { type: string, minLength: 1, maxLength: 160 }
         streetAddress: { type: ["string", "null"], maxLength: 240 }
         city: { type: ["string", "null"], maxLength: 120 }
@@ -255,6 +256,7 @@ components:
       type: object
       required: [unitLabel]
       properties:
+        requestId: { type: string, format: uuid, description: Stable creation identifier reused on retries }
         unitLabel: { type: string, minLength: 1, maxLength: 80 }
     RentlyTenant:
       type: object
@@ -296,6 +298,7 @@ components:
       type: object
       required: [unitId, tenantFullName, startDate, endDate, monthlyRent, dueDay]
       properties:
+        requestId: { type: string, format: uuid, description: Stable creation identifier reused on retries }
         unitId: { type: string, format: uuid }
         tenantFullName: { type: string, minLength: 1, maxLength: 160 }
         tenantEmail: { type: ["string", "null"], format: email }

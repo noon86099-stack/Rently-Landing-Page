@@ -73,18 +73,32 @@ router.post(
       res.status(400).json({ error: "Property name and type are required." });
       return;
     }
-    const { data, error } = await client
-      .from("rently_properties")
-      .insert({
+    let savedId: string | undefined;
+    if (input.requestId) {
+      const { requestId, ...payload } = input;
+      const result = await client.rpc("create_rently_setup_record", {
+        p_request_id: requestId, p_kind: "property", p_payload: payload,
+      });
+      if (result.error) {
+        failDatabaseRequest(req, res, result.error.code);
+        return;
+      }
+      savedId = result.data;
+      if (!savedId) {
+        res.status(500).json({ error: "The saved property could not be loaded." });
+        return;
+      }
+    }
+    const table = client.from("rently_properties");
+    const query = savedId ? table.select("id,name,street_address,city,region,property_type").eq("id", savedId).eq("owner_id", userId) : table.insert({
         owner_id: userId,
         name: input.name.trim(),
         street_address: input.streetAddress?.trim() || null,
         city: input.city?.trim() || null,
         region: input.region?.trim() || null,
         property_type: input.propertyType.trim(),
-      })
-      .select("id,name,street_address,city,region,property_type")
-      .single();
+      }).select("id,name,street_address,city,region,property_type");
+    const { data, error } = await query.single();
 
     if (error) {
       failDatabaseRequest(req, res, error.code);
@@ -120,15 +134,29 @@ router.post(
       res.status(400).json({ error: "Unit label is required." });
       return;
     }
-    const { data, error } = await client
-      .from("rently_units")
-      .insert({
+    let savedId: string | undefined;
+    if (parsed.data.requestId) {
+      const { requestId, ...payload } = parsed.data;
+      const result = await client.rpc("create_rently_setup_record", {
+        p_request_id: requestId, p_kind: "unit", p_payload: { ...payload, propertyId: params.data.propertyId },
+      });
+      if (result.error) {
+        failDatabaseRequest(req, res, result.error.code);
+        return;
+      }
+      savedId = result.data;
+      if (!savedId) {
+        res.status(500).json({ error: "The saved unit could not be loaded." });
+        return;
+      }
+    }
+    const table = client.from("rently_units");
+    const query = savedId ? table.select("id,property_id,unit_label").eq("id", savedId).eq("owner_id", userId) : table.insert({
         owner_id: userId,
         property_id: params.data.propertyId,
         unit_label: parsed.data.unitLabel.trim(),
-      })
-      .select("id,property_id,unit_label")
-      .single();
+      }).select("id,property_id,unit_label");
+    const { data, error } = await query.single();
 
     if (error) {
       failDatabaseRequest(req, res, error.code);
@@ -157,7 +185,12 @@ router.post(
 
     const { client } = getRentlyContext(res);
     const input = parsed.data;
-    const { data: leaseId, error: createError } = await client.rpc(
+    const { requestId, ...payload } = input;
+    const { data: leaseId, error: createError } = requestId
+      ? await client.rpc("create_rently_setup_record", {
+          p_request_id: requestId, p_kind: "lease", p_payload: payload,
+        })
+      : await client.rpc(
       "create_rently_lease_with_schedule",
       {
         p_unit_id: input.unitId,

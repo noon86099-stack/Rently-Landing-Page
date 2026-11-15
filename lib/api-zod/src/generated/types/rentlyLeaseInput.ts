@@ -7,6 +7,8 @@
  */
 
 export interface RentlyLeaseInput {
+  /** Stable creation identifier reused on retries */
+  requestId?: string;
   unitId: string;
   /**
      * @minLength 1

@@ -22,6 +22,8 @@ export interface RentlyProperty {
 }
 
 export interface RentlyPropertyInput {
+  /** Stable creation identifier reused on retries */
+  requestId?: string;
   /**
      * @minLength 1
      * @maxLength 160
@@ -56,6 +58,8 @@ export interface RentlyUnit {
 }
 
 export interface RentlyUnitInput {
+  /** Stable creation identifier reused on retries */
+  requestId?: string;
   /**
      * @minLength 1
      * @maxLength 80
@@ -107,6 +111,8 @@ export interface RentlyLease {
 }
 
 export interface RentlyLeaseInput {
+  /** Stable creation identifier reused on retries */
+  requestId?: string;
   unitId: string;
   /**
      * @minLength 1

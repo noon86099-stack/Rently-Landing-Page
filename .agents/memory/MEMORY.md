@@ -1,2 +1,3 @@
 - [Rently visual direction](visual-direction.md) — Technical branding, concise data-first owner workspace after sign-in, and an Arabic/English language choice.
 - [Rently Supabase and rent rules](supabase-rent-rules.md) — Use the Rently Supabase project with email/password Auth; monthly dues follow lease day, clamped to month-end.
+- [Safe creation retries](creation-retries.md) — Keep retry identifiers after success; shared Supabase schema updates run after merge, not from task forks.
