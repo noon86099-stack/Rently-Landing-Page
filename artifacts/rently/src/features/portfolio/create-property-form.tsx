@@ -45,17 +45,17 @@ export function CreatePropertyForm({ token, userId, onCreated }: { token: string
   if (!open) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" data-testid="button-open-create-property" onClick={() => { setOpen(true); setSuccess(''); }} className={ghostBtn}><Plus size={11} /> Property</button>
+        <button type="button" data-testid="button-open-create-property" onClick={() => { setOpen(true); setSuccess(''); }} className={`${ghostBtn} min-h-10 text-[10px]`}><Plus size={13} /> Add property</button>
         {success && <FormNotice success={success} />}
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} noValidate className="mt-2 grid gap-2 border border-[#cdd9e3] bg-[#f7f9fb] p-3" aria-label="New property">
+    <form onSubmit={submit} noValidate className="mt-2 grid w-full basis-full gap-2 border border-[#cdd9e3] bg-[#f7f9fb] p-3" aria-label="New property">
       <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#47617a]">New property</p><button type="button" aria-label="Close" onClick={() => setOpen(false)} className="text-[#61768b]"><X size={13} /></button></div>
       <div className="grid gap-2 sm:grid-cols-[1.4fr_1fr]">
-        <label className={labelCls}>Name *<input data-testid="input-property-name" value={name} maxLength={160} aria-invalid={touched && !!nameErr} onChange={(e) => setName(e.target.value)} className={inputCls} />{touched && nameErr && <span className="normal-case text-red-700">{nameErr}</span>}</label>
+        <label className={labelCls}>Name *<input autoFocus data-testid="input-property-name" value={name} maxLength={160} aria-invalid={touched && !!nameErr} onChange={(e) => setName(e.target.value)} className={inputCls} />{touched && nameErr && <span className="normal-case text-red-700">{nameErr}</span>}</label>
         <label className={labelCls}>Type *<select data-testid="select-property-type" value={type} onChange={(e) => setType(e.target.value)} className={inputCls}>{TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
       </div>
       <div className="grid gap-2 sm:grid-cols-[1.4fr_1fr_.8fr]">
