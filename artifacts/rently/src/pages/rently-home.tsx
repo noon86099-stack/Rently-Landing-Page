@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import { ArrowDownRight, ArrowRight, CalendarDays, Check, ChevronRight, Download, FileText, Home, Layers3, MapPin, UsersRound } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowDownRight, ArrowRight, CalendarDays, Check, FileText, Home, Layers3, LoaderCircle, MapPin, UsersRound } from 'lucide-react';
+import type { User } from '@supabase/supabase-js';
+import { loadOwnerProperties, loadPropertyDetails, propertyLocation, type Property } from '@/lib/rently-data';
+import { supabase, supabaseConfigured } from '@/lib/supabase';
 
 function RentlyMark({ inverse = false, size = 40 }: { inverse?: boolean; size?: number }) {
   const stroke = inverse ? '#f0f5f8' : '#102238';
@@ -23,119 +27,197 @@ function Wordmark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-const properties = [
-  {
-    name: 'Cedar House',
-    location: 'North Park · San Diego',
-    kind: 'Duplex',
-    units: '2 units',
-    accent: 'bg-[#dce8f3]',
-    glyph: 'CH',
-    tenant: {
-      name: 'Demo Tenant 01',
-      email: 'tenant01@example.test',
-      phone: '+1 (555) 010-0101',
-      unit: 'Unit 02',
-      leasePeriod: '01 Jan 2026 - 31 Dec 2026',
-    },
-  },
-  {
-    name: 'Juniper Flat',
-    location: 'Hillcrest · San Diego',
-    kind: 'Apartment',
-    units: '1 unit',
-    accent: 'bg-[#e6e8df]',
-    glyph: 'JF',
-    tenant: {
-      name: 'Demo Tenant 02',
-      email: 'tenant02@example.test',
-      phone: '+1 (555) 010-0102',
-      unit: 'Unit 01',
-      leasePeriod: '01 Feb 2026 - 31 Jan 2027',
-    },
-  },
-  {
-    name: 'Bayview Cottage',
-    location: 'Point Loma · San Diego',
-    kind: 'Detached home',
-    units: '1 unit',
-    accent: 'bg-[#e8e1d8]',
-    glyph: 'BC',
-    tenant: {
-      name: 'Demo Tenant 03',
-      email: 'tenant03@example.test',
-      phone: '+1 (555) 010-0103',
-      unit: 'Unit 01',
-      leasePeriod: '01 Mar 2026 - 28 Feb 2027',
-    },
-  },
-] as const;
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${value}T00:00:00`));
+}
 
-function downloadSampleLease(property: (typeof properties)[number]) {
-  const lines = [
-    'SAMPLE RENTAL AGREEMENT',
-    'DEMO ONLY - NOT A LEGAL CONTRACT',
-    `Property: ${property.name}`,
-    `Unit: ${property.tenant.unit}`,
-    `Tenant: ${property.tenant.name}`,
-    `Email: ${property.tenant.email}`,
-    `Phone: ${property.tenant.phone}`,
-    `Lease period: ${property.tenant.leasePeriod}`,
-    '',
-    'This sample demonstrates the Rently lease download action.',
-    'Replace it with the saved lease document after Supabase is connected.',
-  ];
-  const escapePdfText = (value: string) =>
-    value
-      .replace(/\\/g, '\\\\')
-      .replace(/\(/g, '\\(')
-      .replace(/\)/g, '\\)')
-      .replace(/[^\x20-\x7E]/g, '?');
-  const commands = lines
-    .map((line, index) => {
-      const position =
-        index === 0
-          ? '72 740 Td\n/F1 18 Tf'
-          : index === 1
-            ? '0 -32 Td\n/F1 10 Tf'
-            : '0 -22 Td';
-      return `${position}\n(${escapePdfText(line)}) Tj`;
-    })
-    .join('\n');
-  const stream = `BT\n${commands}\nET`;
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
-  ];
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  objects.forEach((object, index) => {
-    offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-  const xrefOffset = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+function AuthForm() {
+  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const url = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `rently-sample-lease-${property.name.toLowerCase().replace(/\s+/g, '-')}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    setSubmitting(true);
+    setMessage('');
+    setError('');
+    try {
+      if (mode === 'sign-up') {
+        const { data, error: authError } = await supabase.auth.signUp({ email, password });
+        if (authError) throw authError;
+        if (!data.session) {
+          setMessage('Check your email to confirm your account, then sign in.');
+        }
+      } else {
+        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        if (authError) throw authError;
+      }
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Unable to authenticate. Try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-4 grid gap-2.5" aria-label={mode === 'sign-in' ? 'Sign in' : 'Create an account'}>
+      <label className="grid gap-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#667b8e]">
+        Email
+        <input
+          required
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="min-h-10 border border-[#cbd7e1] bg-white px-3 font-sans text-[12px] normal-case tracking-normal text-[#102238] outline-none focus:border-[#3f7cff] focus:ring-1 focus:ring-[#3f7cff]"
+        />
+      </label>
+      <label className="grid gap-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#667b8e]">
+        Password
+        <input
+          required
+          minLength={8}
+          type="password"
+          autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          className="min-h-10 border border-[#cbd7e1] bg-white px-3 font-sans text-[12px] normal-case tracking-normal text-[#102238] outline-none focus:border-[#3f7cff] focus:ring-1 focus:ring-[#3f7cff]"
+        />
+      </label>
+      {error && <p role="alert" className="text-[10px] text-red-700">{error}</p>}
+      {message && <p role="status" className="text-[10px] text-[#466a2d]">{message}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <button disabled={submitting} className="inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white disabled:opacity-60">
+          {submitting && <LoaderCircle size={13} className="animate-spin" />}
+          {mode === 'sign-in' ? 'Sign in' : 'Create account'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in');
+            setMessage('');
+            setError('');
+          }}
+          className="font-mono text-[8px] uppercase tracking-[.06em] text-[#315b91] underline underline-offset-2"
+        >
+          {mode === 'sign-in' ? 'Create an account' : 'Already registered? Sign in'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PropertyButton({
+  property,
+  index,
+  selected,
+  onSelect,
+}: {
+  property: Property;
+  index: number;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const accents = ['bg-[#dce8f3]', 'bg-[#e6e8df]', 'bg-[#e8e1d8]', 'bg-[#e3e4f0]'];
+  const glyph = property.name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      aria-label={`Show tenant and lease details for ${property.name}`}
+      className={`grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 bg-[#f7f9fb] p-2.5 text-left transition-colors hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] md:grid-cols-[48px_minmax(0,1fr)_auto_auto] md:gap-4 md:p-3 ${selected ? 'border-[#3f7cff] ring-1 ring-[#3f7cff]' : 'border border-[#d7e0e7]'}`}
+    >
+      <div className={`grid h-[42px] w-[42px] place-items-center ${accents[index % accents.length]} font-mono text-[10px] font-medium tracking-[.08em] text-[#344f68] md:h-12 md:w-12`}>{glyph || 'RE'}</div>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <p className="truncate text-[11px] font-semibold tracking-[-.02em]">{property.name}</p>
+          <span className="border border-[#bfcfdd] px-1 py-0.5 font-mono text-[7px] uppercase tracking-[.06em] text-[#526c83]">Owned</span>
+        </div>
+        <p className="mt-1 flex items-center gap-1 truncate font-mono text-[8px] text-[#7b8da0]"><MapPin size={9} />{propertyLocation(property)}</p>
+      </div>
+      <span className="hidden font-mono text-[8px] text-[#61768b] md:block">{property.property_type}</span>
+      <span className="whitespace-nowrap border-l border-[#dce3e9] pl-3 font-mono text-[8px] text-[#61768b]">{property.units.length} {property.units.length === 1 ? 'unit' : 'units'}</span>
+    </button>
+  );
 }
 
 export function RentlyHomepage() {
-  const [selectedProperty, setSelectedProperty] =
-    useState<(typeof properties)[number]>(properties[1]);
+  const queryClient = useQueryClient();
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthReady(true);
+      return;
+    }
+
+    let active = true;
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      queryClient.clear();
+      setSelectedPropertyId(null);
+      setUser(session?.user ?? null);
+      setAuthReady(true);
+    });
+
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) console.error('Unable to restore the Rently session', error);
+      setUser(data.session?.user ?? null);
+      setAuthReady(true);
+    });
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, [queryClient]);
+
+  const propertiesQuery = useQuery({
+    queryKey: ['rently-properties', user?.id],
+    queryFn: () => loadOwnerProperties(user!.id),
+    enabled: supabaseConfigured && authReady && Boolean(user),
+  });
+
+  useEffect(() => {
+    if (!propertiesQuery.data) return;
+    if (!propertiesQuery.data.some((property) => property.id === selectedPropertyId)) {
+      setSelectedPropertyId(propertiesQuery.data[0]?.id ?? null);
+    }
+  }, [propertiesQuery.data, selectedPropertyId]);
+
+  const selectedProperty = propertiesQuery.data?.find(
+    (property) => property.id === selectedPropertyId,
+  ) ?? null;
+  const detailsQuery = useQuery({
+    queryKey: ['rently-property-details', user?.id, selectedPropertyId],
+    queryFn: () => loadPropertyDetails(user!.id, selectedPropertyId!),
+    enabled: Boolean(user && selectedPropertyId),
+  });
+
+  async function signOut() {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('Unable to sign out of Rently', error);
+  }
 
   return (
     <main id="top" className="min-h-[100dvh] overflow-hidden bg-[#e9eef3] text-[#102238]">
@@ -146,10 +228,14 @@ export function RentlyHomepage() {
           <a href="#records" className="transition-colors hover:text-[#102238]">Rental records</a>
           <a href="#owners" className="transition-colors hover:text-[#102238]">For owners</a>
         </nav>
-        <div className="flex items-center gap-1.5 sm:gap-3">
-          <button disabled className="cursor-not-allowed rounded-sm px-3 py-2.5 font-mono text-[10px] uppercase tracking-[.06em] text-[#61758a] opacity-60 sm:px-4" aria-label="Log in, unavailable">Log in</button>
-          <button disabled className="cursor-not-allowed rounded-sm bg-[#102238] px-4 py-2.5 font-mono text-[10px] uppercase tracking-[.06em] text-[#f4f7f9] opacity-65 sm:px-5" aria-label="Sign up, unavailable">Sign up</button>
-        </div>
+        {user ? (
+          <div className="flex max-w-[55%] items-center gap-2 sm:gap-3">
+            <span className="truncate font-mono text-[9px] text-[#61758a]">{user.email}</span>
+            <button type="button" onClick={() => void signOut()} className="rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white">Sign out</button>
+          </div>
+        ) : (
+          <a href="#portfolio" className="rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white sm:px-4">Owner sign in</a>
+        )}
       </header>
 
       <section className="mx-auto grid max-w-[1440px] gap-10 px-5 pb-16 pt-12 md:px-12 md:pb-24 md:pt-16 lg:grid-cols-[.72fr_1.28fr] lg:items-center lg:gap-12 lg:px-[7.4%]">
@@ -170,87 +256,106 @@ export function RentlyHomepage() {
           <div className="absolute -right-4 -top-5 h-[180px] w-[180px] border border-[#c5d2de] md:-right-9 md:-top-8 md:h-[280px] md:w-[280px]" />
           <div className="relative border border-[#c6d2dd] bg-[#f4f7f9] p-3 shadow-[0_24px_70px_-48px_rgba(16,34,56,.45)] md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d8e1e8] px-2 pb-3 pt-1">
-              <div className="flex items-center gap-2.5"><RentlyMark size={28} /><div><p className="text-[11px] font-bold tracking-[-.02em]">Property portfolio</p><p className="font-mono text-[8px] uppercase tracking-[.09em] text-[#7b8da0]">Owner inventory / sample view</p></div></div>
-              <span className="border border-[#c5d4e0] bg-[#e8f0f6] px-2 py-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#44627e]">Sample / demo data</span>
+              <div className="flex items-center gap-2.5"><RentlyMark size={28} /><div><p className="text-[11px] font-bold tracking-[-.02em]">Property portfolio</p><p className="font-mono text-[8px] uppercase tracking-[.09em] text-[#7b8da0]">Owner inventory / private records</p></div></div>
+              <span className="border border-[#c5d4e0] bg-[#e8f0f6] px-2 py-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#44627e]">{user ? 'Owner data' : 'Sign in required'}</span>
             </div>
 
             <div id="portfolio" className="mt-3 border border-[#cdd9e3] bg-[#e7eef4] p-3 md:p-4">
               <div className="mb-2 flex flex-wrap items-end justify-between gap-2 px-1">
-                <div><p className="font-mono text-[8px] uppercase tracking-[.12em] text-[#536c83]">Owned properties</p><h2 className="mt-1 text-[17px] font-semibold tracking-[-.045em]">Your portfolio <span className="font-mono text-[10px] font-normal text-[#6f8295]">/ 03</span></h2></div>
+                <div><p className="font-mono text-[8px] uppercase tracking-[.12em] text-[#536c83]">Owned properties</p><h2 className="mt-1 text-[17px] font-semibold tracking-[-.045em]">Your portfolio <span className="font-mono text-[10px] font-normal text-[#6f8295]">{propertiesQuery.data ? `/ ${String(propertiesQuery.data.length).padStart(2, '0')}` : ''}</span></h2></div>
                 <span className="flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[.07em] text-[#536c83]"><Home size={12} className="text-[#3f7cff]" /> Landlord-owned</span>
               </div>
-              <p className="mb-2 px-1 font-mono text-[7px] uppercase tracking-[.08em] text-[#7b8da0]">Select a property for tenant and lease details</p>
-              <div className="space-y-2">
-                {properties.map((property, index) => (
-                  <button
-                    key={property.name}
-                    type="button"
-                    onClick={() => setSelectedProperty(property)}
-                    aria-pressed={selectedProperty?.name === property.name}
-                    aria-label={`Show tenant and lease details for ${property.name}`}
-                    className={`grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 bg-[#f7f9fb] p-2.5 text-left transition-colors hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] md:grid-cols-[48px_minmax(0,1fr)_auto_auto] md:gap-4 md:p-3 ${selectedProperty?.name === property.name ? 'border-[#3f7cff] ring-1 ring-[#3f7cff]' : 'border border-[#d7e0e7]'}`}
-                  >
-                    <div className={`grid h-[42px] w-[42px] place-items-center ${property.accent} font-mono text-[10px] font-medium tracking-[.08em] text-[#344f68] md:h-12 md:w-12`}>{property.glyph}</div>
-                    <div className="min-w-0"><div className="flex flex-wrap items-center gap-x-2 gap-y-0.5"><p className="truncate text-[11px] font-semibold tracking-[-.02em]">{property.name}</p><span className="border border-[#bfcfdd] px-1 py-0.5 font-mono text-[7px] uppercase tracking-[.06em] text-[#526c83]">Owned</span></div><p className="mt-1 flex items-center gap-1 truncate font-mono text-[8px] text-[#7b8da0]"><MapPin size={9} />{property.location}</p></div>
-                    <span className="hidden font-mono text-[8px] text-[#61768b] md:block">{property.kind}</span>
-                    <span className="whitespace-nowrap border-l border-[#dce3e9] pl-3 font-mono text-[8px] text-[#61768b]">{property.units}</span>
-                    <span className="sr-only">Sample property {index + 1}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div id="records" className="mt-3 grid gap-2.5 md:grid-cols-[.72fr_1.28fr]">
-              {selectedProperty ? (
-                <>
-                  <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3 md:p-4">
-                    <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">Selected property</p><Home size={14} className="text-[#3f7cff]" /></div>
-                    <p className="mt-2 text-[12px] font-semibold tracking-[-.025em]">{selectedProperty.name}</p>
-                    <p className="mt-1 font-mono text-[8px] text-[#778a9c]">{selectedProperty.location}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[7px] uppercase tracking-[.05em]">
-                      <span className="border border-[#cbd8e2] bg-[#e8eef3] px-1.5 py-1 text-[#47617a]">{selectedProperty.tenant.unit}</span>
-                      <span className="border border-[#d8e1e8] px-1.5 py-1 text-[#6b7f92]">{selectedProperty.units}</span>
-                    </div>
-                  </div>
-                  <div className="border border-[#d8e1e8] bg-[#f8fafb] px-3 py-3 md:px-4" aria-live="polite">
-                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-bold">Tenant and lease details</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Demo data</span></div>
-                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[#dce3e9] py-2">
-                      <div><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Tenant</dt><dd className="mt-0.5 text-[9px] font-semibold">{selectedProperty.tenant.name}</dd></div>
-                      <div><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Unit</dt><dd className="mt-0.5 text-[9px] font-semibold">{selectedProperty.tenant.unit}</dd></div>
-                      <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Email</dt><dd className="mt-0.5 break-all text-[9px] font-semibold">{selectedProperty.tenant.email}</dd></div>
-                      <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Phone</dt><dd className="mt-0.5 text-[9px] font-semibold">{selectedProperty.tenant.phone}</dd></div>
-                      <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Lease period</dt><dd className="mt-0.5 text-[9px] font-semibold">{selectedProperty.tenant.leasePeriod}</dd></div>
-                    </dl>
-                    <button type="button" onClick={() => downloadSampleLease(selectedProperty)} className="mt-2 inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white transition-colors hover:bg-[#214a83] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]">
-                      <Download size={13} /> Download sample lease PDF
-                    </button>
-                    <p className="mt-1.5 font-mono text-[7px] text-[#8192a3]">Sample document only · not a legal contract</p>
-                  </div>
-                </>
+              {!supabaseConfigured ? (
+                <div className="border border-[#d7e0e7] bg-[#f7f9fb] p-4">
+                  <p className="text-[11px] font-semibold">Rently database connection is not set up yet.</p>
+                  <p className="mt-1 text-[9px] leading-5 text-[#718398]">Connect the dedicated Supabase project to load private owner records.</p>
+                </div>
+              ) : !authReady ? (
+                <p role="status" className="flex items-center gap-2 p-4 font-mono text-[9px] text-[#61768b]"><LoaderCircle size={14} className="animate-spin" /> Restoring secure session…</p>
+              ) : !user ? (
+                <div className="grid gap-2 border border-[#d7e0e7] bg-[#f7f9fb] p-4 sm:grid-cols-[.8fr_1.2fr] sm:gap-5">
+                  <div><p className="text-[11px] font-semibold">Sign in to view your properties</p><p className="mt-1 text-[9px] leading-5 text-[#718398]">Only records belonging to your account can be loaded.</p></div>
+                  <AuthForm />
+                </div>
+              ) : propertiesQuery.isPending ? (
+                <p role="status" className="flex items-center gap-2 p-4 font-mono text-[9px] text-[#61768b]"><LoaderCircle size={14} className="animate-spin" /> Loading your properties…</p>
+              ) : propertiesQuery.isError ? (
+                <div role="alert" className="border border-red-200 bg-red-50 p-4">
+                  <p className="text-[10px] font-semibold text-red-800">Your properties could not be loaded.</p>
+                  <p className="mt-1 text-[9px] text-red-700">{propertiesQuery.error.message}</p>
+                  <button type="button" onClick={() => void propertiesQuery.refetch()} className="mt-2 font-mono text-[8px] uppercase text-red-800 underline">Try again</button>
+                </div>
+              ) : propertiesQuery.data?.length === 0 ? (
+                <div className="border border-[#d7e0e7] bg-[#f7f9fb] p-4">
+                  <p className="text-[11px] font-semibold">No properties are linked to this account yet.</p>
+                  <p className="mt-1 text-[9px] text-[#718398]">Your portfolio will appear here when property records are added.</p>
+                </div>
               ) : (
                 <>
-              <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3 md:p-4">
-                <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">Linked rental records</p><Layers3 size={14} className="text-[#3f7cff]" /></div>
-                <p className="mt-2 text-[12px] font-semibold tracking-[-.025em]">Records are not properties</p>
-                <p className="mt-1 text-[9px] leading-[1.55] text-[#778a9c]">Tenant, lease and rent details attach to an owned home or unit.</p>
-                <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[7px] uppercase tracking-[.05em]">
-                  <span className="border border-[#cbd8e2] bg-[#e8eef3] px-1.5 py-1 text-[#47617a]">Owner inventory</span><ChevronRight size={12} className="mt-0.5 text-[#8495a5]" /><span className="border border-[#d8e1e8] px-1.5 py-1 text-[#6b7f92]">Linked records</span>
-                </div>
-              </div>
-              <div className="border border-[#d8e1e8] bg-[#f8fafb] px-3 py-3 md:px-4">
-                <div className="mb-1 flex items-center justify-between"><p className="text-[10px] font-bold">Example record chain</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Cedar House · demo</span></div>
-                <div className="grid gap-1.5 sm:grid-cols-4">
-                  <div className="flex items-center gap-2 border-t border-[#dce3e9] py-2 sm:block"><Home size={13} className="shrink-0 text-[#3f7cff]" /><p className="text-[9px] font-semibold sm:mt-1.5">Property</p><p className="ml-auto font-mono text-[7px] text-[#7d90a1] sm:ml-0 sm:mt-0.5">Cedar House</p></div>
-                  <div className="flex items-center gap-2 border-t border-[#dce3e9] py-2 sm:block"><Layers3 size={13} className="shrink-0 text-[#3f7cff]" /><p className="text-[9px] font-semibold sm:mt-1.5">Unit</p><p className="ml-auto font-mono text-[7px] text-[#7d90a1] sm:ml-0 sm:mt-0.5">Unit 02</p></div>
-                  <div className="flex items-center gap-2 border-t border-[#dce3e9] py-2 sm:block"><FileText size={13} className="shrink-0 text-[#3f7cff]" /><p className="text-[9px] font-semibold sm:mt-1.5">Lease</p><p className="ml-auto font-mono text-[7px] text-[#7d90a1] sm:ml-0 sm:mt-0.5">Tenant linked</p></div>
-                  <div className="flex items-center gap-2 border-t border-[#dce3e9] py-2 sm:block"><CalendarDays size={13} className="shrink-0 text-[#3f7cff]" /><p className="text-[9px] font-semibold sm:mt-1.5">Rent record</p><p className="ml-auto font-mono text-[7px] text-[#7d90a1] sm:ml-0 sm:mt-0.5">Due 14 Jun · manual</p></div>
-                </div>
-                <div className="mt-1 flex items-center gap-2 border-t border-[#e1e7ec] pt-2"><UsersRound size={12} className="text-[#73889b]" /><p className="font-mono text-[7px] text-[#7d90a1]">Tenant details belong to the lease, not the property inventory.</p></div>
-              </div>
+                  <p className="mb-2 px-1 font-mono text-[7px] uppercase tracking-[.08em] text-[#7b8da0]">Select a property for its tenant and lease details</p>
+                  <div className="space-y-2">
+                    {propertiesQuery.data?.map((property, index) => (
+                      <PropertyButton
+                        key={property.id}
+                        property={property}
+                        index={index}
+                        selected={selectedPropertyId === property.id}
+                        onSelect={() => setSelectedPropertyId(property.id)}
+                      />
+                    ))}
+                  </div>
                 </>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#d8e1e8] px-1 pt-2 font-mono text-[7px] uppercase tracking-[.08em] text-[#7d90a1]"><span>Property → unit → lease → rent record</span><span className="text-[#60778c]">Illustrative data only · not an account</span></div>
+
+            <div id="records" className="mt-3">
+              {!user ? null : !selectedProperty ? null : (
+                <div className="grid gap-2.5 md:grid-cols-[.72fr_1.28fr]">
+                  <div className="border border-[#d8e1e8] bg-[#f8fafb] p-3 md:p-4">
+                    <div className="flex items-center justify-between"><p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">Selected property</p><Home size={14} className="text-[#3f7cff]" /></div>
+                    <p className="mt-2 text-[12px] font-semibold tracking-[-.025em]">{selectedProperty.name}</p>
+                    <p className="mt-1 font-mono text-[8px] text-[#778a9c]">{propertyLocation(selectedProperty)}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5 font-mono text-[7px] uppercase tracking-[.05em]">
+                      <span className="border border-[#cbd8e2] bg-[#e8eef3] px-1.5 py-1 text-[#47617a]">{selectedProperty.property_type}</span>
+                      <span className="border border-[#d8e1e8] px-1.5 py-1 text-[#6b7f92]">{selectedProperty.units.length} {selectedProperty.units.length === 1 ? 'unit' : 'units'}</span>
+                    </div>
+                  </div>
+                  <div className="border border-[#d8e1e8] bg-[#f8fafb] px-3 py-3 md:px-4" aria-live="polite">
+                    <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-bold">Tenant and lease details</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Linked records</span></div>
+                    {detailsQuery.isPending ? (
+                      <p role="status" className="flex items-center gap-2 border-t border-[#dce3e9] py-3 font-mono text-[9px] text-[#61768b]"><LoaderCircle size={13} className="animate-spin" /> Loading linked records…</p>
+                    ) : detailsQuery.isError ? (
+                      <div role="alert" className="border-t border-[#dce3e9] py-3 text-[9px] text-red-700">
+                        Could not load this property’s linked records.
+                        <button type="button" onClick={() => void detailsQuery.refetch()} className="ml-2 underline">Try again</button>
+                      </div>
+                    ) : detailsQuery.data ? (
+                      <div className="space-y-3 border-t border-[#dce3e9] pt-2">
+                        {detailsQuery.data.units.length === 0 ? (
+                          <p className="text-[9px] text-[#718398]">No units have been added to this property.</p>
+                        ) : detailsQuery.data.units.map((unit) => (
+                          <section key={unit.id} className="border-b border-[#e4e9ee] pb-3 last:border-0 last:pb-0">
+                            <p className="mb-2 font-mono text-[8px] uppercase tracking-[.06em] text-[#47617a]">{unit.unit_label}</p>
+                            {unit.leases.length === 0 ? (
+                              <p className="text-[9px] text-[#718398]">No tenant or lease is linked to this unit.</p>
+                            ) : unit.leases.map((lease) => (
+                              <dl key={lease.id} className="grid grid-cols-2 gap-x-3 gap-y-2">
+                                <div><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Tenant</dt><dd className="mt-0.5 text-[9px] font-semibold">{lease.tenants?.full_name ?? 'Tenant details unavailable'}</dd></div>
+                                <div><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Lease status</dt><dd className="mt-0.5 text-[9px] font-semibold capitalize">{lease.status}</dd></div>
+                                {lease.tenants?.email && <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Email</dt><dd className="mt-0.5 break-all text-[9px] font-semibold">{lease.tenants.email}</dd></div>}
+                                {lease.tenants?.phone && <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Phone</dt><dd className="mt-0.5 text-[9px] font-semibold">{lease.tenants.phone}</dd></div>}
+                                <div className="col-span-2"><dt className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]">Lease dates</dt><dd className="mt-0.5 text-[9px] font-semibold">{formatDate(lease.start_date)} – {formatDate(lease.end_date)}</dd></div>
+                              </dl>
+                            ))}
+                          </section>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#d8e1e8] px-1 pt-2 font-mono text-[7px] uppercase tracking-[.08em] text-[#7d90a1]"><span>Property → unit → lease</span><span className="text-[#60778c]">Private owner records</span></div>
           </div>
         </div>
       </section>
