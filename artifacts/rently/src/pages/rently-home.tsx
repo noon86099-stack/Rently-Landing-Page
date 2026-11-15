@@ -3,9 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowRight, CalendarDays, Check, FileText, Home, LoaderCircle, MapPin, UsersRound } from 'lucide-react';
 import type { Session, User } from '@supabase/supabase-js';
 import type { RentlyLease } from '@workspace/api-client-react';
+import { useLocation } from 'wouter';
 import { loadOwnerProperties, loadPropertyDetails, propertyLocation, type Property } from '@/lib/rently-data';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { CreatePropertyForm, PROPERTY_TYPE_LABELS } from '@/features/portfolio/create-property-form';
+import { PropertyManagementWorkspace } from '@/features/portfolio/property-management-workspace';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { CreateLeaseForm } from '@/features/portfolio/create-lease-form';
@@ -165,6 +167,7 @@ function PropertyButton({
 export function RentlyHomepage() {
   const queryClient = useQueryClient();
   const { t, text } = useI18n();
+  const [location, setLocation] = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const today = useToday();
@@ -208,6 +211,12 @@ export function RentlyHomepage() {
       authListener.subscription.unsubscribe();
     };
   }, [queryClient]);
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (user && location === '/') setLocation('/properties');
+    else if (!user && location !== '/') setLocation('/');
+  }, [authReady, location, setLocation, user]);
 
   const propertiesQuery = useQuery({
     queryKey: ['rently-properties', user?.id],
@@ -259,6 +268,16 @@ export function RentlyHomepage() {
     setCreatedLeaseDetails(null);
     setSelectedPropertyId(propertyId);
     window.setTimeout(() => document.getElementById('portfolio')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+
+  if (user && session) {
+    return (
+      <PropertyManagementWorkspace
+        user={user}
+        token={session.access_token}
+        onSignOut={() => void signOut()}
+      />
+    );
   }
 
   return (

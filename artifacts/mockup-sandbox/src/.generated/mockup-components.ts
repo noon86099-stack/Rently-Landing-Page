@@ -4,5 +4,7 @@ export const modules: ModuleMap = {
   "./components/mockups/rently-brand/Current.tsx": () => import("../components/mockups/rently-brand/Current.tsx"),
   "./components/mockups/rently-brand/PortfolioFocus.tsx": () => import("../components/mockups/rently-brand/PortfolioFocus.tsx"),
   "./components/mockups/rently-brand/RentlyMarkFocus.tsx": () => import("../components/mockups/rently-brand/RentlyMarkFocus.tsx"),
-  "./components/mockups/rently-brand/RentlyTech.tsx": () => import("../components/mockups/rently-brand/RentlyTech.tsx")
+  "./components/mockups/rently-brand/RentlyTech.tsx": () => import("../components/mockups/rently-brand/RentlyTech.tsx"),
+  "./components/mockups/rently-property-management/Current.tsx": () => import("../components/mockups/rently-property-management/Current.tsx"),
+  "./components/mockups/rently-property-management/UnifiedWorkspace.tsx": () => import("../components/mockups/rently-property-management/UnifiedWorkspace.tsx")
 };

@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
+
+.rently-property-management {
+  --background: 43 35% 96%;
+  --foreground: 161 25% 16%;
+  --border: 152 13% 84%;
+  --card: 43 35% 98%;
+  --card-foreground: 161 25% 16%;
+  --input: 152 13% 84%;
+  --primary: 161 31% 25%;
+  --primary-foreground: 43 35% 96%;
+  --secondary: 43 22% 90%;
+  --secondary-foreground: 161 25% 16%;
+  --muted: 42 21% 91%;
+  --muted-foreground: 157 9% 43%;
+  --accent: 23 68% 57%;
+  --accent-foreground: 43 35% 98%;
+  --destructive: 2 62% 48%;
+  --destructive-foreground: 43 35% 96%;
+  --app-font-sans: 'DM Sans', sans-serif;
+  --app-font-serif: 'Instrument Serif', Georgia, serif;
+  --app-font-mono: 'DM Mono', monospace;
+  --radius: 0.5rem;
+  --button-outline: rgba(0, 0, 0, 0.1);
+  --badge-outline: rgba(0, 0, 0, 0.05);
+  --opaque-button-border-intensity: -8;
+  --elevate-1: rgba(0, 0, 0, 0.03);
+  --elevate-2: rgba(0, 0, 0, 0.08);
+  font-family: var(--app-font-sans);
+  font-feature-settings: "ss01" on;
+}
+
+.rently-property-management.dark {
+  --background: 161 20% 12%;
+  --foreground: 43 30% 93%;
+  --border: 160 11% 28%;
+  --card: 161 18% 15%;
+  --card-foreground: 43 30% 93%;
+  --input: 160 11% 28%;
+  --primary: 43 50% 68%;
+  --primary-foreground: 161 20% 12%;
+  --secondary: 160 13% 21%;
+  --secondary-foreground: 43 30% 93%;
+  --muted: 160 13% 21%;
+  --muted-foreground: 155 9% 66%;
+  --accent: 23 68% 57%;
+  --accent-foreground: 161 20% 12%;
+  --destructive: 2 62% 58%;
+  --destructive-foreground: 43 30% 93%;
+  --opaque-button-border-intensity: 9;
+  --elevate-1: rgba(255, 255, 255, 0.04);
+  --elevate-2: rgba(255, 255, 255, 0.09);
+}
+
+.rently-property-management ::selection {
+  background: #d8a980;
+  color: #17392f;
+}

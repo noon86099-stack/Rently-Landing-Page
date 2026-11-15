@@ -1,10 +1,23 @@
 import { Check, Home } from 'lucide-react';
-import type { RentlyLease } from '@workspace/api-client-react';
 import { LeaseDocumentControl } from '@/features/leases/lease-document-control';
 import { useI18n, useLocalizedFormats } from '@/lib/i18n';
 
+export type LeaseDetailsData = {
+  id: string;
+  tenant: {
+    fullName: string;
+    email?: string | null;
+    phone?: string | null;
+  };
+  monthlyRent: number | null;
+  dueDay: number | null;
+  startDate: string;
+  endDate: string;
+  payments: { dueDate: string; paidAt: string | null }[];
+};
+
 export type CreatedLeaseDetails = {
-  lease: RentlyLease;
+  lease: LeaseDetailsData;
   propertyId: string;
   propertyName: string;
   unitLabel: string;
@@ -15,7 +28,8 @@ export function LeaseDetailsPage({
   propertyName,
   unitLabel,
   onGoToDashboard,
-}: CreatedLeaseDetails & { onGoToDashboard: () => void }) {
+  showCreatedConfirmation = true,
+}: CreatedLeaseDetails & { onGoToDashboard: () => void; showCreatedConfirmation?: boolean }) {
   const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
   const nextPayment = [...lease.payments]
@@ -28,10 +42,12 @@ export function LeaseDetailsPage({
       dir={direction}
       className="mx-auto my-5 w-full max-w-3xl border border-[#cbd6df] bg-[#f8fafb]"
     >
-      <div role="status" data-testid="lease-created-confirmation" className="flex items-center gap-2 border-b border-[#cfe0bb] bg-[#f3f9ec] px-4 py-3 text-[#3d6324]">
-        <span className="grid h-7 w-7 shrink-0 place-items-center bg-[#b5f06b] text-[#102238]"><Check size={15} /></span>
-        <p className="text-[13px] font-semibold">{t('Lease created successfully', 'تم إنشاء عقد الإيجار بنجاح')}</p>
-      </div>
+      {showCreatedConfirmation && (
+        <div role="status" data-testid="lease-created-confirmation" className="flex items-center gap-2 border-b border-[#cfe0bb] bg-[#f3f9ec] px-4 py-3 text-[#3d6324]">
+          <span className="grid h-7 w-7 shrink-0 place-items-center bg-[#b5f06b] text-[#102238]"><Check size={15} /></span>
+          <p className="text-[13px] font-semibold">{t('Lease created successfully', 'تم إنشاء عقد الإيجار بنجاح')}</p>
+        </div>
+      )}
 
       <div className="border-b border-[#d8e1e8] px-4 py-4 md:px-6">
         <p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#64798d]">{t('Lease details', 'تفاصيل العقد')}</p>
@@ -54,7 +70,7 @@ export function LeaseDetailsPage({
         </div>
         <div className="bg-white p-4">
           <dt className="font-mono text-[8px] uppercase tracking-[.08em] text-[#8192a3]">{t('Monthly rent', 'الإيجار الشهري')}</dt>
-          <dd dir="ltr" className="mt-1 text-start font-mono text-[12px] font-semibold">{formatMoney(lease.monthlyRent)}</dd>
+          <dd dir="ltr" className="mt-1 text-start font-mono text-[12px] font-semibold">{lease.monthlyRent == null ? '—' : formatMoney(lease.monthlyRent)}</dd>
         </div>
         <div className="bg-white p-4">
           <dt className="font-mono text-[8px] uppercase tracking-[.08em] text-[#8192a3]">{t('Start date', 'تاريخ البداية')}</dt>
@@ -69,9 +85,11 @@ export function LeaseDetailsPage({
           <dd dir="ltr" className="mt-1 text-start text-[11px] font-semibold">
             {nextPayment
               ? formatDate(nextPayment.dueDate)
-              : t(`Day ${lease.dueDay} of each month`, `يوم ${lease.dueDay} من كل شهر`)}
+              : lease.dueDay == null
+                ? '—'
+                : t(`Day ${lease.dueDay} of each month`, `يوم ${lease.dueDay} من كل شهر`)}
           </dd>
-          <p className="mt-1 text-[10px] text-[#718398]">{t(`Monthly due day: ${lease.dueDay}`, `يوم الاستحقاق الشهري: ${lease.dueDay}`)}</p>
+          {lease.dueDay != null && <p className="mt-1 text-[10px] text-[#718398]">{t(`Monthly due day: ${lease.dueDay}`, `يوم الاستحقاق الشهري: ${lease.dueDay}`)}</p>}
         </div>
       </dl>
 

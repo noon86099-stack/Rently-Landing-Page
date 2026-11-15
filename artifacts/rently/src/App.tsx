@@ -7,8 +7,6 @@ import NotFound from '@/pages/not-found';
 import { RentlyHomepage } from '@/pages/rently-home';
 import { I18nProvider } from '@/lib/i18n';
 import {
-  Route,
-  Switch,
   useLocation,
   Router as WouterRouter,
 } from 'wouter';
@@ -20,14 +18,11 @@ function Home() {
   return <RentlyHomepage />;
 }
 function Router() {
+  const [location] = useLocation();
+  const isRentlyRoute = location === '/' || /^\/(?:properties(?:\/[^/]+)?|tenants(?:\/[^/]+)?|leases(?:\/[^/]+)?)\/?$/.test(location);
   return (
-    // Keep a shared shell (sidebar, navbar) outside the boundary so it
-    // survives a page crash.
     <RoutedErrorBoundary>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route component={NotFound} />
-      </Switch>
+      {isRentlyRoute ? <Home /> : <NotFound />}
     </RoutedErrorBoundary>
   );
 }
