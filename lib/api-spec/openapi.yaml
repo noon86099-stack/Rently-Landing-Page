@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: rently
+    description: Owner-scoped rental management
 paths:
   /healthz:
     get:
@@ -24,7 +26,156 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /rently/properties:
+    post:
+      operationId: createRentlyProperty
+      tags: [rently]
+      summary: Create an owner property
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RentlyPropertyInput"
+      responses:
+        "201":
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RentlyProperty"
+        "400":
+          description: Invalid property details
+        "401":
+          description: Authentication required
+  /rently/properties/{propertyId}/units:
+    post:
+      operationId: createRentlyUnit
+      tags: [rently]
+      summary: Add a unit to an owner property
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: propertyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RentlyUnitInput"
+      responses:
+        "201":
+          description: Unit created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RentlyUnit"
+        "400":
+          description: Invalid unit details
+        "401":
+          description: Authentication required
+        "404":
+          description: Property not found
+  /rently/leases:
+    post:
+      operationId: createRentlyLease
+      tags: [rently]
+      summary: Create a tenant lease and monthly rent schedule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RentlyLeaseInput"
+      responses:
+        "201":
+          description: Lease and due dates created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RentlyLease"
+        "400":
+          description: Invalid lease details
+        "401":
+          description: Authentication required
+        "404":
+          description: Unit not found
+        "409":
+          description: Lease overlaps an existing lease
+  /rently/payments/{paymentId}/paid:
+    post:
+      operationId: recordRentlyPayment
+      tags: [rently]
+      summary: Record a rent payment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RentlyPaymentInput"
+      responses:
+        "200":
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RentlyPayment"
+        "400":
+          description: Invalid payment date
+        "401":
+          description: Authentication required
+        "404":
+          description: Payment not found
+  /rently/leases/{leaseId}/pdf:
+    get:
+      operationId: downloadRentlyLeasePdf
+      tags: [rently]
+      summary: Download a generated lease draft
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: leaseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Generated lease PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Authentication required
+        "404":
+          description: Lease not found
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +184,88 @@ components:
           type: string
       required:
         - status
+    RentlyProperty:
+      type: object
+      required: [id, name, streetAddress, city, region, propertyType]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        streetAddress: { type: ["string", "null"] }
+        city: { type: ["string", "null"] }
+        region: { type: ["string", "null"] }
+        propertyType: { type: string }
+    RentlyPropertyInput:
+      type: object
+      required: [name, propertyType]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        streetAddress: { type: ["string", "null"], maxLength: 240 }
+        city: { type: ["string", "null"], maxLength: 120 }
+        region: { type: ["string", "null"], maxLength: 120 }
+        propertyType: { type: string, minLength: 1, maxLength: 80 }
+    RentlyUnit:
+      type: object
+      required: [id, propertyId, unitLabel]
+      properties:
+        id: { type: string, format: uuid }
+        propertyId: { type: string, format: uuid }
+        unitLabel: { type: string }
+    RentlyUnitInput:
+      type: object
+      required: [unitLabel]
+      properties:
+        unitLabel: { type: string, minLength: 1, maxLength: 80 }
+    RentlyTenant:
+      type: object
+      required: [id, fullName, email, phone]
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+    RentlyPayment:
+      type: object
+      required: [id, dueDate, amount, paidAt]
+      properties:
+        id: { type: string, format: uuid }
+        dueDate: { type: string, format: date }
+        amount: { type: number }
+        paidAt: { type: ["string", "null"], format: date }
+    RentlyLease:
+      type: object
+      required: [id, unitId, tenantId, startDate, endDate, status, monthlyRent, dueDay, tenant, payments]
+      properties:
+        id: { type: string, format: uuid }
+        unitId: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        status:
+          type: string
+          enum: [active, ended, upcoming]
+        monthlyRent: { type: number }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        tenant:
+          $ref: "#/components/schemas/RentlyTenant"
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/RentlyPayment"
+    RentlyLeaseInput:
+      type: object
+      required: [unitId, tenantFullName, startDate, endDate, monthlyRent, dueDay]
+      properties:
+        unitId: { type: string, format: uuid }
+        tenantFullName: { type: string, minLength: 1, maxLength: 160 }
+        tenantEmail: { type: ["string", "null"], format: email }
+        tenantPhone: { type: ["string", "null"], maxLength: 80 }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        monthlyRent: { type: number, exclusiveMinimum: 0, maximum: 100000000 }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+    RentlyPaymentInput:
+      type: object
+      required: [paidAt]
+      properties:
+        paidAt: { type: string, format: date }
 
