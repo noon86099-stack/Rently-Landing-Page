@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { LanguageSwitcher } from '../components/language-switcher';
 import {
   I18nProvider, LANGUAGE_STORAGE_KEY, languageDirection, languageLocale,
-  message, resolveMessage, useI18n,
+  message, resolveMessage, useI18n, useLocalizedFormats,
 } from './i18n';
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -28,6 +28,12 @@ function storageReturning(value: string | null, blocked = false) {
 function LanguageLabel() {
   const { language, t } = useI18n();
   return createElement('span', { lang: language }, t('Add property', 'إضافة عقار'));
+}
+
+function DateLabel() {
+  const { direction } = useI18n();
+  const { formatDate } = useLocalizedFormats();
+  return createElement('bdi', { dir: direction }, formatDate('2026-11-16'));
 }
 
 function renderProvider() {
@@ -62,6 +68,19 @@ test('Arabic dates keep Gregorian year, not a locale-default Hijri calendar', ()
     assert.equal(parts.find((part) => part.type === 'year')?.value, '2026');
     assert.equal(parts.find((part) => part.type === 'day')?.value, '28');
   }
+});
+
+test('formatted Arabic dates keep right-to-left direction while English stays left-to-right', () => {
+  storageReturning('ar');
+  assert.match(
+    renderToStaticMarkup(createElement(I18nProvider, { children: createElement(DateLabel) })),
+    /<bdi dir="rtl">16 نوفمبر 2026<\/bdi>/,
+  );
+  storageReturning('en');
+  assert.match(
+    renderToStaticMarkup(createElement(I18nProvider, { children: createElement(DateLabel) })),
+    /<bdi dir="ltr">Nov 16, 2026<\/bdi>/,
+  );
 });
 
 test('saved English preference renders English immediately', () => {

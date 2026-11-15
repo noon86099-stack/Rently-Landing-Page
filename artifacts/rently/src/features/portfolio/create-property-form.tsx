@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { LoaderCircle, Plus, X } from 'lucide-react';
-import { useCreateRentlyProperty } from '@workspace/api-client-react';
+import { useCreateRentlyProperty, useCreateRentlyUnit } from '@workspace/api-client-react';
 import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { FormNotice, authRequest, errorMessage, ghostBtn, inputCls, invalidatePortfolio, labelCls, primaryBtn } from './shared';
 
@@ -29,6 +29,7 @@ export function CreatePropertyForm({ token, userId, onCreated }: { token: string
   const [error, setError] = useState<UiMessage>('');
   const [success, setSuccess] = useState<UiMessage>('');
   const create = useCreateRentlyProperty({ request: authRequest(token) });
+  const createUnit = useCreateRentlyUnit({ request: authRequest(token) });
 
   const nameErr = !name.trim() ? t('Name required.', 'الاسم مطلوب.') : '';
   const typeErr = !type.trim() ? t('Type required.', 'النوع مطلوب.') : '';
@@ -43,6 +44,24 @@ export function CreatePropertyForm({ token, userId, onCreated }: { token: string
       const p = await create.mutateAsync({
         data: { name: name.trim(), propertyType: type.trim(), streetAddress: street.trim() || null, city: city.trim() || null, region: region.trim() || null },
       });
+      try {
+        // Keep the unit row required by leases, but use the property's full
+        // address (including apartment number) as its internal location label.
+        await createUnit.mutateAsync({
+          propertyId: p.id,
+          data: { unitLabel: street.trim() || p.name },
+        });
+      } catch (unitError) {
+        await invalidatePortfolio(qc, userId, p.id);
+        onCreated(p.id);
+        setError(message(
+          `The property was saved, but its rental location could not be set up: ${text(errorMessage(unitError))} You can retry when creating the first lease.`,
+          `تم حفظ العقار، لكن تعذّر إعداد موقع الإيجار: ${text(errorMessage(unitError))} يمكنك إعادة المحاولة عند إنشاء أول عقد.`,
+        ));
+        setName(''); setStreet(''); setCity(''); setRegion(''); setTouched(false);
+        setOpen(false);
+        return;
+      }
       await invalidatePortfolio(qc, userId, p.id);
       onCreated(p.id);
       setSuccess(message(`${p.name} created.`, `تم إنشاء ${p.name}.`));
@@ -57,7 +76,7 @@ export function CreatePropertyForm({ token, userId, onCreated }: { token: string
     return (
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" data-testid="button-open-create-property" onClick={() => { setOpen(true); setSuccess(''); }} className={`${ghostBtn} min-h-10 text-[10px]`}><Plus size={13} /> {t('Add property', 'إضافة عقار')}</button>
-        {success && <FormNotice success={success} />}
+        <FormNotice error={error} success={success} />
       </div>
     );
   }
@@ -70,12 +89,12 @@ export function CreatePropertyForm({ token, userId, onCreated }: { token: string
         <label className={labelCls}>{t('Type', 'النوع')} *<select data-testid="select-property-type" value={type} onChange={(e) => setType(e.target.value)} className={inputCls}>{TYPES.map((value) => <option key={value} value={value}>{text(PROPERTY_TYPE_LABELS[value])}</option>)}</select></label>
       </div>
       <div className="grid gap-2 sm:grid-cols-[1.4fr_1fr_.8fr]">
-        <label className={labelCls}>{t('Street', 'الشارع')}<input dir="auto" data-testid="input-property-street" value={street} maxLength={240} onChange={(e) => setStreet(e.target.value)} className={inputCls} /></label>
+        <label className={labelCls}>{t('Address (include apartment number)', 'العنوان (يتضمن رقم الشقة)')}<input dir="auto" data-testid="input-property-street" value={street} maxLength={240} placeholder={t('Street, building, apartment', 'الشارع، المبنى، رقم الشقة')} onChange={(e) => setStreet(e.target.value)} className={inputCls} /></label>
         <label className={labelCls}>{t('City', 'المدينة')}<input dir="auto" data-testid="input-property-city" value={city} maxLength={120} onChange={(e) => setCity(e.target.value)} className={inputCls} /></label>
         <label className={labelCls}>{t('Region', 'المنطقة')}<input dir="auto" data-testid="input-property-region" value={region} maxLength={120} onChange={(e) => setRegion(e.target.value)} className={inputCls} /></label>
       </div>
       <FormNotice error={error} success={success} />
-      <div><button data-testid="button-create-property" disabled={create.isPending} className={primaryBtn}>{create.isPending && <LoaderCircle size={12} className="animate-spin" />}{t('Create property', 'إنشاء العقار')}</button></div>
+      <div><button data-testid="button-create-property" disabled={create.isPending || createUnit.isPending} className={primaryBtn}>{(create.isPending || createUnit.isPending) && <LoaderCircle size={12} className="animate-spin" />}{createUnit.isPending ? t('Saving address…', 'جارٍ حفظ العنوان…') : t('Create property', 'إنشاء العقار')}</button></div>
     </form>
   );
 }

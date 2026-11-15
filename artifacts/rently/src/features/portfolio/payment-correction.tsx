@@ -12,7 +12,7 @@ type Props = {
 
 export function PaymentCorrection({ payment, ctx }: Props) {
   const qc = useQueryClient();
-  const { t } = useI18n();
+  const { t, direction } = useI18n();
   const { formatDate, formatDateTime } = useLocalizedFormats();
   const [open, setOpen] = useState(false);
   const [paidAt, setPaidAt] = useState(payment.paid_at ?? '');
@@ -61,13 +61,13 @@ export function PaymentCorrection({ payment, ctx }: Props) {
 
   return <div className="grid gap-1">
     <div className="flex flex-wrap items-center gap-2">
-      <span className="font-mono text-[8px] text-[#3d6324]">{t('Paid', 'مدفوع')} <bdi dir="ltr">{payment.paid_at && formatDate(payment.paid_at)}</bdi></span>
+      <span className="font-mono text-[8px] text-[#3d6324]">{t('Paid', 'مدفوع')} <bdi dir={direction}>{payment.paid_at && formatDate(payment.paid_at)}</bdi></span>
       {!open && <button type="button" className={ghostBtn} onClick={start}>{t('Correct date / history', 'تصحيح التاريخ / السجل')}</button>}
     </div>
     <FormNotice success={success} />
     {open && <div className="grid gap-2 border border-[#cbd7e1] bg-[#f8fafb] p-2">
       <form onSubmit={submit} className="grid gap-2">
-        <p className="text-[10px]">{t('Correct paid date:', 'تصحيح تاريخ الدفع:')} <bdi dir="ltr">{formatDate(expectedPaidAt)} → {paidAt ? formatDate(paidAt) : t('Select date', 'اختر التاريخ')}</bdi>. {t('The due date and amount will not change.', 'لن يتغيّر تاريخ الاستحقاق ولا المبلغ.')}</p>
+        <p className="text-[10px]">{t('Correct paid date:', 'تصحيح تاريخ الدفع:')} <bdi dir={direction}>{formatDate(expectedPaidAt)} → {paidAt ? formatDate(paidAt) : t('Select date', 'اختر التاريخ')}</bdi>. {t('The due date and amount will not change.', 'لن يتغيّر تاريخ الاستحقاق ولا المبلغ.')}</p>
         <label className={labelCls}>{t('New paid date', 'تاريخ الدفع الجديد')}
           <input type="date" dir="ltr" required max={ctx.today} value={paidAt} disabled={correction.isPending} onChange={(e) => { setPaidAt(e.target.value); setConfirmed(false); }} className={inputCls} />
         </label>
@@ -90,7 +90,7 @@ export function PaymentCorrection({ payment, ctx }: Props) {
         {history.isError && <FormNotice error={message('History could not be loaded.', 'تعذّر تحميل السجل.')} />}
         {history.data?.length === 0 && <p>{t('No corrections recorded.', 'لا توجد تصحيحات مسجّلة.')}</p>}
         {history.data?.map((item) => <div key={item.id} className="grid gap-0.5 border-t pt-1">
-          <p dir="ltr" className="text-start">{formatDate(item.previousPaidAt)} → {formatDate(item.newPaidAt)}</p>
+          <p dir={direction} className="text-start">{formatDate(item.previousPaidAt)} → {formatDate(item.newPaidAt)}</p>
           <p dir="auto" className="whitespace-pre-wrap break-words">{item.reason}</p>
           <p className="break-all">{t('By', 'بواسطة')} <bdi dir="ltr">{item.actorId}</bdi> · <bdi>{formatDateTime(item.correctedAt)}</bdi></p>
         </div>)}

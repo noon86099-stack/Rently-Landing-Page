@@ -19,7 +19,7 @@ function statusOf(p: Payment, today: string) {
 
 function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
   const qc = useQueryClient();
-  const { t, text } = useI18n();
+  const { t, text, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
   const [paidAt, setPaidAt] = useState(ctx.today);
   const [error, setError] = useState<UiMessage>('');
@@ -41,7 +41,7 @@ function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
 
   return (
     <li data-testid={`row-payment-${payment.id}`} className="grid gap-1.5 border-t border-[#e4e9ee] py-1.5 sm:grid-cols-[88px_76px_74px_minmax(0,1fr)] sm:items-center">
-      <span dir="ltr" className="text-start font-mono text-[9px] text-[#102238]">{formatDate(payment.due_date)}</span>
+      <span dir={direction} className="text-start font-mono text-[9px] text-[#102238]">{formatDate(payment.due_date)}</span>
       <span dir="ltr" className="text-start font-mono text-[9px] tabular-nums text-[#47617a]">{formatMoney(payment.amount)}</span>
       <span data-testid={`status-payment-${payment.id}`} className={`w-fit border px-1.5 py-0.5 font-mono text-[7px] uppercase tracking-[.06em] ${s.cls}`}>{text(s.label)}</span>
       {payment.paid_at ? (
@@ -60,7 +60,7 @@ function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
 }
 
 function PdfButton({ leaseId, token }: { leaseId: string; token: string }) {
-  const { t } = useI18n();
+  const { t, direction } = useI18n();
   const [error, setError] = useState<UiMessage>('');
   const pdf = useDownloadRentlyLeasePdf(leaseId, {
     query: { enabled: false, gcTime: 0, queryKey: getDownloadRentlyLeasePdfQueryKey(leaseId) },
@@ -97,7 +97,7 @@ export function LeaseRecord({ lease, ctx }: { lease: Lease; ctx: Ctx }) {
   const visible = showAll ? payments : payments.filter((p) => !p.paid_at).slice(0, 4);
   const hasTerms = lease.monthly_rent != null && lease.due_day != null;
   const tenant = lease.tenants;
-  const { t } = useI18n();
+  const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
   const statusLabel: Record<string, string> = { active: t('Active', 'نشط'), ended: t('Ended', 'منتهٍ'), upcoming: t('Upcoming', 'قادم') };
   const dt = 'font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]';
@@ -107,7 +107,7 @@ export function LeaseRecord({ lease, ctx }: { lease: Lease; ctx: Ctx }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p data-testid={`text-tenant-${lease.id}`} dir="auto" className="truncate text-[11px] font-semibold">{tenant?.full_name ?? t('Tenant unavailable', 'المستأجر غير متاح')}</p>
-          <p className="mt-0.5 font-mono text-[8px] text-[#778a9c]"><bdi dir="ltr">{formatDate(lease.start_date)} / {formatDate(lease.end_date)}</bdi> <span className="uppercase text-[#47617a]">[{statusLabel[lease.status] ?? lease.status}]</span></p>
+          <p className="mt-0.5 font-mono text-[8px] text-[#778a9c]"><bdi dir={direction}>{formatDate(lease.start_date)} / {formatDate(lease.end_date)}</bdi> <span className="uppercase text-[#47617a]">[{statusLabel[lease.status] ?? lease.status}]</span></p>
         </div>
         {hasTerms && <PdfButton leaseId={lease.id} token={ctx.token} />}
       </div>
