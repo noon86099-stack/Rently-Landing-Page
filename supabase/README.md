@@ -25,6 +25,7 @@ tokens with Supabase Auth and accesses tables using the same user's RLS context.
 2. `artifacts/rently/supabase/migrations/20261115190000_lease_documents_storage.sql`
 3. `supabase/migrations/20261116000100_rently_rent_management.sql`
 4. `supabase/migrations/20261116000200_rently_payment_corrections.sql`
+5. `supabase/migrations/20261116000300_rently_setup_retries.sql`
 
 The existing project has the first two modules. The third migration is
 additive: it preserves existing properties, tenants, and leases. Older leases
@@ -66,6 +67,9 @@ Supabase SQL Editor. Do not run destructive resets or replace the database.
 - Correction history stores old/new dates, reason, authenticated actor and server
   time atomically. Owners can read only their history, never write or erase it.
   It has no cascading foreign keys, so account/lease deletion cannot erase history.
+- Property, unit, and lease setup calls use an owner-scoped retry receipt. If a
+  request succeeds but its response is lost, retrying the same request returns
+  the saved record instead of creating a duplicate.
 
 If the optional document module exists, the rent migration adds an
 owner/lease foreign key and tightens metadata and storage policies. The new

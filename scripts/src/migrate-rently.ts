@@ -12,8 +12,15 @@ const migrationNames = [
   "20261116000200_rently_payment_corrections.sql",
   "20261116000300_rently_setup_retries.sql",
 ];
+const skipIfUnconfigured = process.argv.includes("--skip-if-unconfigured");
 const connectionString = process.env.SUPABASE_DB_URL;
 if (!connectionString) {
+  if (skipIfUnconfigured) {
+    process.stdout.write(
+      "Skipping Supabase migrations: SUPABASE_DB_URL is not configured. No database changes were applied.\n",
+    );
+    process.exit(0);
+  }
   throw new Error("Add SUPABASE_DB_URL through Replit Secrets before migrating.");
 }
 const url = new URL(connectionString);
@@ -21,6 +28,12 @@ if (!["postgres:", "postgresql:"].includes(url.protocol)) {
   throw new Error("SUPABASE_DB_URL must be a PostgreSQL connection URL.");
 }
 if (/YOUR[-_ ]?PASSWORD|\[.*PASSWORD.*\]|<.*PASSWORD.*>|CHANGE.?ME/i.test(decodeURIComponent(url.password))) {
+  if (skipIfUnconfigured) {
+    process.stdout.write(
+      "Skipping Supabase migrations: SUPABASE_DB_URL still has a sample password. No database changes were applied.\n",
+    );
+    process.exit(0);
+  }
   throw new Error("The database URL still contains a sample password. No changes were applied.");
 }
 for (const key of ["sslmode", "ssl", "sslrootcert", "sslcert", "sslkey"]) {
