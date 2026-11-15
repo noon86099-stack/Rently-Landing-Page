@@ -11,6 +11,7 @@ import { CreateLeaseForm } from './create-lease-form';
 import { LeaseRecord } from './lease-record';
 import { PROPERTY_TYPE_LABELS } from './create-property-form';
 import { setupErrorMessage } from './setup-request';
+import { trackGuidedSetupEvent } from './setup-analytics';
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 afterEach(() => {
@@ -162,6 +163,30 @@ test('safe retry errors are available in both languages without leaking upstream
   const storageError = new Error('تعذّر حفظ معرّف المحاولة في المتصفح.');
   assert.match(setupErrorMessage(storageError, '', 'en'), /no data was sent/);
   assert.doesNotMatch(setupErrorMessage(new Error('Private upstream detail'), 'Could not save.', 'en'), /Private upstream/);
+});
+
+test('guided setup analytics sends only fixed stage values and ignores tracker errors', () => {
+  const events: Array<{ name: string; data?: Record<string, string | number | boolean> }> = [];
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { umami: { track: (name: string, data?: Record<string, string | number | boolean>) => events.push({ name, data }) } },
+  });
+
+  trackGuidedSetupEvent('guided_setup_started');
+  trackGuidedSetupEvent('guided_setup_stage_completed', 'property');
+  trackGuidedSetupEvent('guided_setup_stage_failed', 'lease');
+
+  assert.deepEqual(events, [
+    { name: 'guided_setup_started', data: undefined },
+    { name: 'guided_setup_stage_completed', data: { stage: 'property' } },
+    { name: 'guided_setup_stage_failed', data: { stage: 'lease' } },
+  ]);
+
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { umami: { track() { throw new Error('tracker unavailable'); } } },
+  });
+  assert.doesNotThrow(() => trackGuidedSetupEvent('guided_setup_stage_completed', 'unit'));
 });
 
 test('management prefers the saved address and directs missing units to an explicit setup step', () => {

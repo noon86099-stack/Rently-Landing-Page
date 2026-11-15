@@ -6,6 +6,7 @@ import type { Unit } from '@/lib/rently-data';
 import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { FormNotice, authRequest, inputCls, invalidatePortfolio, labelCls, primaryBtn } from './shared';
 import { setupErrorMessage, setupRequestId } from './setup-request';
+import { trackGuidedSetupEvent } from './setup-analytics';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -135,8 +136,8 @@ function DatePartsInput({ testId, value, min, invalid, label, onChange }: {
   );
 }
 
-export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitId, defaultUnitLabel, onCreated, onSavingChange }: {
-  token: string; userId: string; propertyId: string; units: Unit[]; initialUnitId?: string; defaultUnitLabel?: string; onCreated?: (leaseId: string, lease: RentlyLease) => void; onSavingChange?: (saving: boolean) => void;
+export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitId, defaultUnitLabel, onCreated, trackGuidedSetup = false, onSavingChange }: {
+  token: string; userId: string; propertyId: string; units: Unit[]; initialUnitId?: string; defaultUnitLabel?: string; onCreated?: (leaseId: string, lease: RentlyLease) => void; trackGuidedSetup?: boolean; onSavingChange?: (saving: boolean) => void;
 }) {
   const qc = useQueryClient();
   const { t } = useI18n();
@@ -181,10 +182,13 @@ export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitI
     e.preventDefault();
     if (busy.current) return;
     setTouched(true); setError(''); setSuccess('');
-    if (Object.values(errs).some(Boolean)) return;
+    if (Object.values(errs).some(Boolean)) {
+      if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_failed', 'lease');
+      return;
+    }
     busy.current = true; setSaving(true); onSavingChange?.(true);
+    let lease: RentlyLease | null = null;
     try {
-      let lease: RentlyLease | null = null;
       try {
         const data = {
           unitId: effectiveUnit,
@@ -197,12 +201,14 @@ export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitI
         };
         lease = await create.mutateAsync({ data: { ...data, requestId: await setupRequestId(userId, 'lease', data) } });
       } catch (err) {
+        if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_failed', 'lease');
         setError(message(
           setupErrorMessage(err, 'Could not confirm the lease was saved.', 'en'),
           setupErrorMessage(err, 'تعذّر تأكيد حفظ العقد. حاول مرة أخرى.'),
         ));
       }
       if (lease) {
+        if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_completed', 'lease');
         try { await invalidatePortfolio(qc, userId, propertyId); } catch { /* saved; refresh can retry later */ }
         setSuccess(message(`Lease saved for ${lease.tenant.fullName}. ${lease.payments.length} dues generated.`, `تم حفظ عقد ${lease.tenant.fullName}. أُنشئت ${lease.payments.length} مستحقات شهرية.`));
         setFullName(''); setEmail(''); setPhone(''); setStartDate(''); setEndDate(''); setRent(''); setDueDay('1'); setDueTouched(false); setTouched(false);

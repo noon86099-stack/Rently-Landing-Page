@@ -6,6 +6,7 @@ import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { FormNotice, authRequest, ghostBtn, inputCls, invalidatePortfolio, labelCls, primaryBtn } from './shared';
 import { setupErrorMessage, setupRequestId } from './setup-request';
 import { cacheSavedProperty } from './setup-cache';
+import { trackGuidedSetupEvent } from './setup-analytics';
 
 const TYPES = ['Apartment', 'House', 'Duplex', 'Townhouse', 'Condo', 'Mixed-use'];
 // Display labels only; the stored propertyType value stays the English key.
@@ -18,8 +19,8 @@ export const PROPERTY_TYPE_LABELS: Record<string, { en: string; ar: string }> = 
   'Mixed-use': message('Mixed-use', 'متعدد الاستخدام'),
 };
 
-export function CreatePropertyForm({ token, userId, onCreated, embedded = false, initiallyOpen = false, onSavingChange }: {
-  token: string; userId: string; onCreated: (id: string) => void; embedded?: boolean; initiallyOpen?: boolean; onSavingChange?: (saving: boolean) => void;
+export function CreatePropertyForm({ token, userId, onCreated, embedded = false, initiallyOpen = false, trackGuidedSetup = false, onSavingChange }: {
+  token: string; userId: string; onCreated: (id: string) => void; embedded?: boolean; initiallyOpen?: boolean; trackGuidedSetup?: boolean; onSavingChange?: (saving: boolean) => void;
 }) {
   const qc = useQueryClient();
   const { t, text } = useI18n();
@@ -45,7 +46,10 @@ export function CreatePropertyForm({ token, userId, onCreated, embedded = false,
     setTouched(true);
     setError('');
     setSuccess('');
-    if (nameErr || typeErr) return;
+    if (nameErr || typeErr) {
+      if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_failed', 'property');
+      return;
+    }
     busy.current = true; setSaving(true); onSavingChange?.(true);
     try {
       let created: RentlyProperty | null = null;
@@ -53,12 +57,14 @@ export function CreatePropertyForm({ token, userId, onCreated, embedded = false,
         const data = { name: name.trim(), propertyType: type.trim(), streetAddress: street.trim() || null, city: city.trim() || null, region: region.trim() || null };
         created = await create.mutateAsync({ data: { ...data, requestId: await setupRequestId(userId, 'property', data) } });
       } catch (err) {
+        if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_failed', 'property');
         setError(message(
           setupErrorMessage(err, 'Could not confirm the property was saved.', 'en'),
           setupErrorMessage(err, 'تعذّر تأكيد حفظ العقار. حاول مرة أخرى.'),
         ));
       }
       if (created) {
+        if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_completed', 'property');
         cacheSavedProperty(qc, userId, created);
         try { await invalidatePortfolio(qc, userId, created.id); } catch { /* saved; refresh can retry later */ }
         setSuccess(message(`Property "${created.name}" saved.`, `تم حفظ العقار «${created.name}».`));

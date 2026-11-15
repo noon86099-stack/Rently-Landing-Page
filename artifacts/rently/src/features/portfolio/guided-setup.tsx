@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Check, Home, LoaderCircle, RotateCcw } from 'lucide-react';
 import type { RentlyLease } from '@workspace/api-client-react';
@@ -7,6 +7,7 @@ import { LeaseDocumentControl, type LeaseDocumentStatus } from '@/features/lease
 import { CreatePropertyForm } from './create-property-form';
 import { AddUnitForm } from './add-unit-form';
 import { CreateLeaseForm } from './create-lease-form';
+import { trackGuidedSetupEvent } from './setup-analytics';
 import { useI18n, useLocalizedFormats } from '@/lib/i18n';
 
 type Props = { token: string; userId: string; onOpenRecords: (propertyId: string) => void };
@@ -118,6 +119,13 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
   const [documentStatus, setDocumentStatus] = useState<LeaseDocumentStatus>('loading');
   const [finished, setFinished] = useState(false);
   const [saving, setSaving] = useState(false);
+  const trackedStart = useRef(false);
+
+  useEffect(() => {
+    if (trackedStart.current) return;
+    trackedStart.current = true;
+    trackGuidedSetupEvent('guided_setup_started');
+  }, []);
 
   const props = useQuery({ queryKey: ['rently-properties', userId], queryFn: () => loadOwnerProperties(userId), staleTime: 0 });
   const details = useQuery({
@@ -187,7 +195,7 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
                   {showPropertyForm && (
                     <div className="border border-[#d8e1e8] bg-white p-3">
                       {properties.length === 0 && <p className="mb-2 text-[11px] text-[#667b8e]">{t('No properties yet. Save your first property.', 'لا توجد عقارات بعد. ابدأ بحفظ أول عقار.')}</p>}
-                      <CreatePropertyForm embedded token={token} userId={userId} onCreated={pickProperty} onSavingChange={setSaving} />
+                      <CreatePropertyForm embedded token={token} userId={userId} trackGuidedSetup onCreated={pickProperty} onSavingChange={setSaving} />
                       {newProperty && <button type="button" onClick={() => setNewProperty(false)} className="mt-2 text-[11px] text-[#315b91] underline">{t('Choose a saved property instead', 'العودة لاختيار عقار محفوظ')}</button>}
                     </div>
                   )}
@@ -221,7 +229,7 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
                   )}
                   {showUnitForm && (
                     <div className="border border-[#d8e1e8] bg-white p-3">
-                      <AddUnitForm key={propertyId} token={token} userId={userId} propertyId={propertyId} onCreated={pickUnit} onSavingChange={setSaving} />
+                      <AddUnitForm key={propertyId} token={token} userId={userId} propertyId={propertyId} trackGuidedSetup onCreated={pickUnit} onSavingChange={setSaving} />
                       {newUnit && <button type="button" onClick={() => setNewUnit(false)} className="mt-2 text-[11px] text-[#315b91] underline">{t('Choose a saved unit instead', 'العودة لاختيار وحدة محفوظة')}</button>}
                     </div>
                   )}
@@ -240,7 +248,7 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
               {details.data.rentSetupRequired ? (
                 <p role="alert" className="border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">{t('Apply the database update before adding a lease. Existing records remain available.', 'إدارة الإيجار تحتاج إلى تحديث قاعدة البيانات قبل إضافة عقد. سجلاتك الحالية ما زالت متاحة.')}</p>
               ) : (
-              <CreateLeaseForm key={unit.id} token={token} userId={userId} propertyId={propertyId} units={[unit]} initialUnitId={unit.id} onCreated={(_id, l) => { setDocumentStatus('loading'); setFinished(false); setLease(l); }} onSavingChange={setSaving} />
+                <CreateLeaseForm key={unit.id} token={token} userId={userId} propertyId={propertyId} units={[unit]} initialUnitId={unit.id} trackGuidedSetup onCreated={(_id, l) => { setDocumentStatus('loading'); setFinished(false); setLease(l); }} onSavingChange={setSaving} />
               )}
             </div>
           )}

@@ -6,9 +6,10 @@ import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { FormNotice, authRequest, inputCls, invalidatePortfolio, primaryBtn } from './shared';
 import { setupErrorMessage, setupRequestId } from './setup-request';
 import { cacheSavedUnit } from './setup-cache';
+import { trackGuidedSetupEvent } from './setup-analytics';
 
-export function AddUnitForm({ token, userId, propertyId, onCreated, onSavingChange }: {
-  token: string; userId: string; propertyId: string; onCreated?: (unitId: string) => void; onSavingChange?: (saving: boolean) => void;
+export function AddUnitForm({ token, userId, propertyId, onCreated, trackGuidedSetup = false, onSavingChange }: {
+  token: string; userId: string; propertyId: string; onCreated?: (unitId: string) => void; trackGuidedSetup?: boolean; onSavingChange?: (saving: boolean) => void;
 }) {
   const qc = useQueryClient();
   const { t } = useI18n();
@@ -26,23 +27,26 @@ export function AddUnitForm({ token, userId, propertyId, onCreated, onSavingChan
     if (busy.current) return;
     setError(''); setSuccess('');
     if (!label.trim()) {
+      if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_failed', 'unit');
       setError(message('Enter a unit name or number first, e.g. Apartment 1.', 'اكتب اسمًا أو رقمًا للوحدة أولًا، مثل: شقة 1.'));
       inputRef.current?.focus();
       return;
     }
     busy.current = true; setSaving(true); onSavingChange?.(true);
+    let created: RentlyUnit | null = null;
     try {
-      let created: RentlyUnit | null = null;
       try {
         const data = { unitLabel: label.trim() };
         created = await create.mutateAsync({ propertyId, data: { ...data, requestId: await setupRequestId(userId, 'unit:' + propertyId, data) } });
       } catch (err) {
+        if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_failed', 'unit');
         setError(message(
           setupErrorMessage(err, 'Could not confirm the unit was saved.', 'en'),
           setupErrorMessage(err, 'تعذّر تأكيد حفظ الوحدة. حاول مرة أخرى.'),
         ));
       }
       if (created) {
+        if (trackGuidedSetup) trackGuidedSetupEvent('guided_setup_stage_completed', 'unit');
         cacheSavedUnit(qc, userId, created);
         try { await invalidatePortfolio(qc, userId, propertyId); } catch { /* saved; refresh can retry later */ }
         setSuccess(message(`Unit "${created.unitLabel}" saved. Next: tenant and lease.`, `تم حفظ الوحدة «${created.unitLabel}». الخطوة التالية: إضافة المستأجر والعقد.`));
