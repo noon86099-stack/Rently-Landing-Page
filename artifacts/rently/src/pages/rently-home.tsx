@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowRight, CalendarDays, Check, FileText, Home, LoaderCircle, MapPin, UsersRound } from 'lucide-react';
 import type { Session, User } from '@supabase/supabase-js';
+import type { RentlyLease } from '@workspace/api-client-react';
 import { loadOwnerProperties, loadPropertyDetails, propertyLocation, type Property } from '@/lib/rently-data';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { CreatePropertyForm, PROPERTY_TYPE_LABELS } from '@/features/portfolio/create-property-form';
@@ -10,6 +11,7 @@ import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { CreateLeaseForm } from '@/features/portfolio/create-lease-form';
 import { LeaseRecord } from '@/features/portfolio/lease-record';
 import { GuidedSetup, GuidedSetupDisclosure } from '@/features/portfolio/guided-setup';
+import { LeaseDetailsPage, type CreatedLeaseDetails } from '@/features/portfolio/lease-details-page';
 import { Panel, useToday } from '@/features/portfolio/shared';
 
 function RentlyMark({ inverse = false, size = 40 }: { inverse?: boolean; size?: number }) {
@@ -168,6 +170,7 @@ export function RentlyHomepage() {
   const today = useToday();
   const [authReady, setAuthReady] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [createdLeaseDetails, setCreatedLeaseDetails] = useState<CreatedLeaseDetails | null>(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -183,6 +186,7 @@ export function RentlyHomepage() {
       if (previousOwnerId !== (nextUser?.id ?? null)) {
         queryClient.clear();
         setSelectedPropertyId(null);
+        setCreatedLeaseDetails(null);
       }
       previousOwnerId = nextUser?.id ?? null;
       setSession(nextSession);
@@ -238,8 +242,23 @@ export function RentlyHomepage() {
     if (!supabase) return;
     queryClient.clear();
     setSelectedPropertyId(null);
+    setCreatedLeaseDetails(null);
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Unable to sign out of Rently', error);
+  }
+
+  function showLeaseDetails(lease: RentlyLease, propertyId: string, propertyName: string, unitLabel: string) {
+    setSelectedPropertyId(propertyId);
+    setCreatedLeaseDetails({ lease, propertyId, propertyName, unitLabel });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goToDashboard() {
+    if (!createdLeaseDetails) return;
+    const propertyId = createdLeaseDetails.propertyId;
+    setCreatedLeaseDetails(null);
+    setSelectedPropertyId(propertyId);
+    window.setTimeout(() => document.getElementById('portfolio')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }
 
   return (
@@ -267,6 +286,10 @@ export function RentlyHomepage() {
         </div>
       </header>
 
+      {createdLeaseDetails ? (
+        <LeaseDetailsPage {...createdLeaseDetails} onGoToDashboard={goToDashboard} />
+      ) : (
+        <>
       <section className={user ? 'mx-auto grid max-w-[1440px] px-4 pb-10 pt-5 md:px-8 md:pt-6 lg:px-10' : 'mx-auto grid max-w-[1440px] gap-10 px-5 pb-16 pt-12 md:px-12 md:pb-24 md:pt-16 lg:grid-cols-[.72fr_1.28fr] lg:items-center lg:gap-12 lg:px-[7.4%]'}>
         {!user && <div className="relative z-[1] max-w-[500px]">
           <div className="mb-6 inline-flex items-center gap-2 border border-[#c6d3df] bg-[#f2f6f9] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.13em] text-[#536c83]">
@@ -291,7 +314,7 @@ export function RentlyHomepage() {
 
             {user && token && supabaseConfigured && (
               <GuidedSetupDisclosure>
-                <GuidedSetup key={user.id} token={token} userId={user.id} onOpenRecords={(id) => { setSelectedPropertyId(id); window.setTimeout(() => document.getElementById('records')?.scrollIntoView({ behavior: 'smooth' }), 50); }} />
+                <GuidedSetup key={user.id} token={token} userId={user.id} onOpenRecords={(id) => { setSelectedPropertyId(id); window.setTimeout(() => document.getElementById('records')?.scrollIntoView({ behavior: 'smooth' }), 50); }} onLeaseCreated={showLeaseDetails} />
               </GuidedSetupDisclosure>
             )}
             <div className={user ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(300px,.42fr)_1fr] xl:items-start' : ''}>
@@ -361,7 +384,7 @@ export function RentlyHomepage() {
                     </div>
                     {detailsQuery.data?.rentSetupRequired ? (
                       <p role="alert" className="border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">{t('Rent management needs the Supabase database update. Your existing records remain available.', 'تحتاج إدارة الإيجارات إلى تحديث قاعدة بيانات Supabase. سجلاتك الحالية ما زالت متاحة.')}</p>
-                    ) : token && detailsQuery.data && <Panel code="L+" title={message('Tenant & lease', 'المستأجر والعقد')}><CreateLeaseForm key={selectedProperty.id} token={token} userId={user.id} propertyId={selectedProperty.id} units={detailsQuery.data.units} defaultUnitLabel={selectedProperty.street_address?.trim() || selectedProperty.name} /></Panel>}
+                    ) : token && detailsQuery.data && <Panel code="L+" title={message('Tenant & lease', 'المستأجر والعقد')}><CreateLeaseForm key={selectedProperty.id} token={token} userId={user.id} propertyId={selectedProperty.id} units={detailsQuery.data.units} defaultUnitLabel={selectedProperty.street_address?.trim() || selectedProperty.name} onCreated={(_id, lease) => showLeaseDetails(lease, selectedProperty.id, selectedProperty.name, detailsQuery.data?.units.find((unit) => unit.id === lease.unitId)?.unit_label ?? selectedProperty.name)} /></Panel>}
                   </div>
                   <div className="border border-[#d8e1e8] bg-[#f8fafb] px-3 py-3 md:px-4" aria-live="polite">
                     <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[10px] font-bold">{t('Leases / dues', 'العقود / المستحقات')}</p><span className="font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]" dir="ltr">{today}</span></div>
@@ -418,6 +441,8 @@ export function RentlyHomepage() {
       <section id="owners" className="relative overflow-hidden px-5 py-16 md:px-12 md:py-24 lg:px-[7.4%]"><div className="absolute -end-16 top-[-70px] h-[300px] w-[300px] border border-[#cbd6df] md:end-[6%] md:top-[-120px] md:h-[440px] md:w-[440px]" /><div className="relative mx-auto max-w-[1440px]"><div className="max-w-[590px]"><p className="font-mono text-[9px] uppercase tracking-[.14em] text-[#3f7cff]">{t('03 / For owners', '03 / للملاك')}</p><h2 className="mt-4 text-[clamp(2.4rem,5vw,4.6rem)] font-semibold leading-[.93] tracking-[-.075em]">{t('Your portfolio,', 'محفظتك،')}<br /><span className="text-[#3f7cff]">{t('not a tangle of records.', 'لا فوضى من السجلات.')}</span></h2><p className="mt-4 max-w-[360px] text-[13px] leading-5 text-[#586e83]">{t('A focused way for independent landlords to organize properties and the rental details attached to them.', 'طريقة مركّزة للملاك المستقلين لتنظيم العقارات وتفاصيل الإيجار المرتبطة بها.')}</p></div><div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[#cbd6df] pt-4 font-mono text-[8px] uppercase tracking-[.07em] text-[#60768b]"><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> {t('Owned properties & addresses', 'العقارات وعناوينها')}</span><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> {t('Lease agreements', 'عقود الإيجار')}</span><span className="flex items-center gap-1.5"><Check size={12} className="text-[#3f7cff]" /> {t('Manual rent records', 'سجلات الإيجار اليدوية')}</span></div><a href="#portfolio" className="group mt-6 inline-flex items-center gap-2 border-b border-[#3f7cff] pb-1.5 text-[11px] font-semibold text-[#214a83]">{t('Back to the portfolio', 'العودة إلى المحفظة')} <ArrowDownRight size={14} className="transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" /></a></div></section>
 
       </>}
+        </>
+      )}
 
       <footer className="border-t border-[#cbd6df] bg-[#dde6ed]"><div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-12 lg:px-[7.4%]"><Wordmark compact />{!user && <p className="font-mono text-[8px] uppercase tracking-[.1em] text-[#708398]">{t('Your portfolio / clearly connected', 'محفظتك / مترابطة بوضوح')}</p>}<p className="font-mono text-[8px] uppercase tracking-[.09em] text-[#8092a3]" dir="ltr">© 2025 Rently</p></div></footer>
     </main>

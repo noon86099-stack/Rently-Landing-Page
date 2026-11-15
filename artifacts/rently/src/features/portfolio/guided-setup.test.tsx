@@ -5,9 +5,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/lib/i18n';
 import type { Lease } from '@/lib/rently-data';
+import type { RentlyLease } from '@workspace/api-client-react';
 import { GuidedSetup, GuidedSetupDisclosure, SetupCompletion } from './guided-setup';
 import { AddUnitForm } from './add-unit-form';
 import { CreateLeaseForm } from './create-lease-form';
+import { LeaseDetailsPage } from './lease-details-page';
 import { LeaseRecord } from './lease-record';
 import { PROPERTY_TYPE_LABELS } from './create-property-form';
 import { setupErrorMessage } from './setup-request';
@@ -47,8 +49,8 @@ test('guided setup is collapsed by default behind an accessible disclosure', () 
   const detailsTag = en.match(/<details\b[^>]*>/)?.[0];
   assert.ok(detailsTag, 'Expected the guided setup disclosure to render.');
   assert.doesNotMatch(detailsTag, /\sopen(?:="")?(?:\s|>)/);
-  assert.match(en, /Add property, unit or lease/);
-  assert.match(ar, /إضافة عقار أو وحدة أو عقد/);
+  assert.match(en, /Add property, unit, tenant or lease/);
+  assert.match(ar, /إضافة عقار أو وحدة أو مستأجر وعقد/);
   assert.match(en, /Setup content/);
 });
 
@@ -132,6 +134,43 @@ test('completion screen confirms the saved file and displays scheduled due dates
   assert.match(ar, /05 مايو 2026/);
 });
 
+test('lease details confirms creation, shows tenant and lease terms, and offers dashboard navigation', () => {
+  const lease: RentlyLease = {
+    id: 'lease-a',
+    unitId: 'unit-a',
+    tenantId: 'tenant-a',
+    startDate: '2026-02-01',
+    endDate: '2027-01-31',
+    status: 'active',
+    monthlyRent: 12000,
+    dueDay: 5,
+    tenant: { id: 'tenant-a', fullName: 'Jordan Tenant', email: 'jordan@example.test', phone: '+1 555 0100' },
+    payments: [{ id: 'payment-a', dueDate: '2026-06-05', amount: 12000, paidAt: null }],
+  };
+  const page = createElement(LeaseDetailsPage, {
+    lease,
+    propertyId: 'property-a',
+    propertyName: 'Cedar House',
+    unitLabel: 'Unit 02',
+    onGoToDashboard() {},
+  });
+
+  const en = render('en', page);
+  assert.match(en, /Lease created successfully/);
+  assert.match(en, /Jordan Tenant/);
+  assert.match(en, /jordan@example\.test/);
+  assert.match(en, /12,000/);
+  assert.match(en, /Feb 01, 2026/);
+  assert.match(en, /Jan 31, 2027/);
+  assert.match(en, /Jun 05, 2026/);
+  assert.match(en, /button-lease-details-dashboard/);
+  assert.match(en, /Back to dashboard/);
+
+  const ar = render('ar', page);
+  assert.match(ar, /تم إنشاء عقد الإيجار بنجاح/);
+  assert.match(ar, /العودة إلى لوحة التحكم/);
+});
+
 test('payment recording uses today and no longer asks for a paid date', () => {
   const lease: Lease = {
     id: 'lease-a',
@@ -197,7 +236,8 @@ test('management prefers the saved address and directs missing units to an expli
   ] });
   assert.match(render('en', lease), /value="unit-b" selected=""/);
   const missingUnit = createElement(CreateLeaseForm, { ...props, units: [] });
-  assert.match(render('en', missingUnit), /href="#setup"/);
+  assert.match(render('en', missingUnit), /data-testid="button-open-guided-setup"/);
+  assert.match(render('en', missingUnit), /Open guided setup/);
   assert.match(render('ar', missingUnit), /احفظ وحدة أولًا/);
   assert.doesNotMatch(render('en', missingUnit), /data-testid="button-create-lease"/);
 });

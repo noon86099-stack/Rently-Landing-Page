@@ -159,6 +159,13 @@ export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitI
   const [success, setSuccess] = useState<UiMessage>('');
   const create = useCreateRentlyLease({ request: authRequest(token) });
 
+  function openGuidedSetup() {
+    const disclosure = document.getElementById('guided-setup-disclosure') as HTMLDetailsElement | null;
+    if (!disclosure) return;
+    disclosure.open = true;
+    window.setTimeout(() => disclosure.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  }
+
   const effectiveUnit = units.some((u) => u.id === unitId) ? unitId : preferredUnitId;
   const rentNum = Number(rent);
   const dayNum = Number(dueDay);
@@ -219,7 +226,7 @@ export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitI
     }
   }
 
-  if (units.length === 0) return <p className="text-[11px] leading-5 text-[#718398]">{t('Save a unit first using the guided setup.', 'احفظ وحدة أولًا من الإعداد الموجّه.')} <a href="#setup" className="text-[#315b91] underline">{t('Open guided setup', 'فتح الإعداد الموجّه')}</a></p>;
+  if (units.length === 0) return <p className="text-[11px] leading-5 text-[#718398]">{t('Save a unit first using the guided setup.', 'احفظ وحدة أولًا من الإعداد الموجّه.')} <button type="button" data-testid="button-open-guided-setup" onClick={openGuidedSetup} className="text-[#315b91] underline">{t('Open guided setup', 'فتح الإعداد الموجّه')}</button></p>;
 
   return (
     <form onSubmit={submit} noValidate className="grid gap-2" aria-label={t('New lease', 'عقد جديد')}>

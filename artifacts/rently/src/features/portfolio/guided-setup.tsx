@@ -10,16 +10,21 @@ import { CreateLeaseForm } from './create-lease-form';
 import { trackGuidedSetupEvent } from './setup-analytics';
 import { useI18n, useLocalizedFormats } from '@/lib/i18n';
 
-type Props = { token: string; userId: string; onOpenRecords: (propertyId: string) => void };
+type Props = {
+  token: string;
+  userId: string;
+  onOpenRecords: (propertyId: string) => void;
+  onLeaseCreated?: (lease: RentlyLease, propertyId: string, propertyName: string, unitLabel: string) => void;
+};
 
 const chip = 'border px-2 py-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] disabled:opacity-50';
 
 export function GuidedSetupDisclosure({ children }: { children: ReactNode }) {
   const { t, direction } = useI18n();
   return (
-    <details data-testid="disclosure-guided-setup" className="mb-3 border border-[#cdd9e3] bg-[#f8fafb]">
+    <details id="guided-setup-disclosure" data-testid="disclosure-guided-setup" className="mb-3 border border-[#cdd9e3] bg-[#f8fafb]">
       <summary dir={direction} className="cursor-pointer px-3 py-2.5 text-[11px] font-semibold text-[#315b91] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3f7cff]">
-        {t('Add property, unit or lease', 'إضافة عقار أو وحدة أو عقد')}
+        {t('Add property, unit, tenant or lease', 'إضافة عقار أو وحدة أو مستأجر وعقد')}
       </summary>
       <div className="px-2 pb-2">{children}</div>
     </details>
@@ -108,7 +113,7 @@ export function SetupCompletion({ hasDocument, dueDay, payments, onOpenRecords, 
   );
 }
 
-export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
+export function GuidedSetup({ token, userId, onOpenRecords, onLeaseCreated }: Props) {
   const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
   const [propertyId, setPropertyId] = useState<string | null>(null);
@@ -248,7 +253,7 @@ export function GuidedSetup({ token, userId, onOpenRecords }: Props) {
               {details.data.rentSetupRequired ? (
                 <p role="alert" className="border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">{t('Apply the database update before adding a lease. Existing records remain available.', 'إدارة الإيجار تحتاج إلى تحديث قاعدة البيانات قبل إضافة عقد. سجلاتك الحالية ما زالت متاحة.')}</p>
               ) : (
-                <CreateLeaseForm key={unit.id} token={token} userId={userId} propertyId={propertyId} units={[unit]} initialUnitId={unit.id} trackGuidedSetup onCreated={(_id, l) => { setDocumentStatus('loading'); setFinished(false); setLease(l); }} onSavingChange={setSaving} />
+                <CreateLeaseForm key={unit.id} token={token} userId={userId} propertyId={propertyId} units={[unit]} initialUnitId={unit.id} trackGuidedSetup onCreated={(_id, l) => { setDocumentStatus('loading'); setFinished(false); setLease(l); onLeaseCreated?.(l, propertyId, property?.name ?? '', unit.unit_label); }} onSavingChange={setSaving} />
               )}
             </div>
           )}
