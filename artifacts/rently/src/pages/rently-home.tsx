@@ -9,7 +9,7 @@ import { LanguageSwitcher } from '@/components/language-switcher';
 import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { CreateLeaseForm } from '@/features/portfolio/create-lease-form';
 import { LeaseRecord } from '@/features/portfolio/lease-record';
-import { GuidedSetup } from '@/features/portfolio/guided-setup';
+import { GuidedSetup, GuidedSetupDisclosure } from '@/features/portfolio/guided-setup';
 import { Panel, useToday } from '@/features/portfolio/shared';
 
 function RentlyMark({ inverse = false, size = 40 }: { inverse?: boolean; size?: number }) {
@@ -290,7 +290,9 @@ export function RentlyHomepage() {
             </div>
 
             {user && token && supabaseConfigured && (
-              <GuidedSetup key={user.id} token={token} userId={user.id} onOpenRecords={(id) => { setSelectedPropertyId(id); window.setTimeout(() => document.getElementById('records')?.scrollIntoView({ behavior: 'smooth' }), 50); }} />
+              <GuidedSetupDisclosure>
+                <GuidedSetup key={user.id} token={token} userId={user.id} onOpenRecords={(id) => { setSelectedPropertyId(id); window.setTimeout(() => document.getElementById('records')?.scrollIntoView({ behavior: 'smooth' }), 50); }} />
+              </GuidedSetupDisclosure>
             )}
             <div className={user ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(300px,.42fr)_1fr] xl:items-start' : ''}>
             <div id="portfolio" className="mt-3 border border-[#cdd9e3] bg-[#e7eef4] p-3 md:p-4">

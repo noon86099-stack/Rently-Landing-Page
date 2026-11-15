@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Check, Home, LoaderCircle, RotateCcw } from 'lucide-react';
 import type { RentlyLease } from '@workspace/api-client-react';
@@ -12,6 +12,18 @@ import { useI18n, useLocalizedFormats } from '@/lib/i18n';
 type Props = { token: string; userId: string; onOpenRecords: (propertyId: string) => void };
 
 const chip = 'border px-2 py-1.5 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] disabled:opacity-50';
+
+export function GuidedSetupDisclosure({ children }: { children: ReactNode }) {
+  const { t, direction } = useI18n();
+  return (
+    <details data-testid="disclosure-guided-setup" className="mb-3 border border-[#cdd9e3] bg-[#f8fafb]">
+      <summary dir={direction} className="cursor-pointer px-3 py-2.5 text-[11px] font-semibold text-[#315b91] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3f7cff]">
+        {t('Add property, unit or lease', 'إضافة عقار أو وحدة أو عقد')}
+      </summary>
+      <div className="px-2 pb-2">{children}</div>
+    </details>
+  );
+}
 
 function StepHead({ n, title, state, saved }: { n: string; title: string; state: 'done' | 'active' | 'locked'; saved?: string }) {
   const { t } = useI18n();

@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from '@/lib/i18n';
 import type { Lease } from '@/lib/rently-data';
-import { GuidedSetup, SetupCompletion } from './guided-setup';
+import { GuidedSetup, GuidedSetupDisclosure, SetupCompletion } from './guided-setup';
 import { AddUnitForm } from './add-unit-form';
 import { CreateLeaseForm } from './create-lease-form';
 import { LeaseRecord } from './lease-record';
@@ -36,6 +36,20 @@ function inputTag(markup: string, testId: string) {
   assert.ok(tag, `Expected input ${testId} to render.`);
   return tag;
 }
+
+test('guided setup is collapsed by default behind an accessible disclosure', () => {
+  const disclosure = createElement(GuidedSetupDisclosure, {
+    children: createElement('p', null, 'Setup content'),
+  });
+  const en = render('en', disclosure);
+  const ar = render('ar', disclosure);
+  const detailsTag = en.match(/<details\b[^>]*>/)?.[0];
+  assert.ok(detailsTag, 'Expected the guided setup disclosure to render.');
+  assert.doesNotMatch(detailsTag, /\sopen(?:="")?(?:\s|>)/);
+  assert.match(en, /Add property, unit or lease/);
+  assert.match(ar, /إضافة عقار أو وحدة أو عقد/);
+  assert.match(en, /Setup content/);
+});
 
 test('guided setup and its property form follow the chosen language and direction', () => {
   const child = createElement(GuidedSetup, { userId: 'owner-a', token: 'unused', onOpenRecords() {} });
