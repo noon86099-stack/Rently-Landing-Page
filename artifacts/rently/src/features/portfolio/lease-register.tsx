@@ -157,7 +157,7 @@ export function LeaseRegister({ entries, token, userId, today }: Props) {
           <h2 className="text-sm font-semibold text-[#102238]">{t('Lease register', 'سجل العقود')}</h2>
           <p className="mt-1 text-[10px] text-[#718398]">{t('Grouped by property with payment status at a glance.', 'مرتبة حسب العقار مع حالة الدفعات بوضوح.')}</p>
         </div>
-        <Link href="/tenants" className="inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 text-xs font-semibold text-white transition hover:bg-[#234362]">
+        <Link href="/tenants" className="inline-flex min-h-9 items-center gap-2 bg-[#3f7cff] px-3 text-xs font-semibold text-white transition hover:bg-[#2f68e0]">
           <Plus size={13} aria-hidden="true" /> {t('Add tenant and lease', 'إضافة مستأجر وعقد')}
         </Link>
       </div>

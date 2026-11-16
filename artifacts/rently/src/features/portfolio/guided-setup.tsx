@@ -99,7 +99,7 @@ export function SetupCompletion({ hasDocument, dueDay, payments, onOpenRecords, 
       </div>
       <LeaseDueSchedule dueDay={dueDay} payments={payments} />
       <div className="flex flex-wrap gap-2">
-        <button type="button" data-testid="button-open-records" onClick={onOpenRecords} className="inline-flex items-center gap-1.5 bg-[#102238] px-3 py-2 text-[11px] font-semibold text-white">
+        <button type="button" data-testid="button-open-records" onClick={onOpenRecords} className="inline-flex items-center gap-1.5 bg-[#3f7cff] px-3 py-2 text-[11px] font-semibold text-white transition-colors hover:bg-[#2f68e0]">
           {t('View records', 'عرض السجلات')} <ArrowLeft size={12} className="ltr:rotate-180" />
         </button>
         <button type="button" data-testid="button-go-home" onClick={onGoHome} className="inline-flex items-center gap-1.5 border border-[#c5d4e0] bg-white px-3 py-2 text-[11px] text-[#315b91]">
@@ -288,7 +288,7 @@ export function GuidedSetup({ token, userId, onOpenRecords, onLeaseCreated }: Pr
               data-testid="button-finish-setup"
               disabled={documentStatus !== 'saved'}
               onClick={finishSetup}
-              className="inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 py-2 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-9 items-center gap-2 bg-[#3f7cff] px-3 py-2 text-[11px] font-semibold text-white transition-colors hover:bg-[#2f68e0] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('Finish setup', 'إنهاء الإعداد')}
             </button>

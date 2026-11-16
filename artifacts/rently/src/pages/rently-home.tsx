@@ -102,7 +102,7 @@ function AuthForm() {
       {error && <p role="alert" className="text-[10px] text-red-700">{text(error)}</p>}
       {notice && <p role="status" className="text-[10px] text-[#466a2d]">{text(notice)}</p>}
       <div className="flex flex-wrap items-center gap-3">
-        <button disabled={submitting} className="inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white disabled:opacity-60">
+        <button disabled={submitting} className="inline-flex min-h-9 items-center gap-2 bg-[#3f7cff] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white transition-colors hover:bg-[#2f68e0] disabled:opacity-60">
           {submitting && <LoaderCircle size={13} className="animate-spin" />}
           {mode === 'sign-in' ? t('Sign in', 'تسجيل الدخول') : t('Create account', 'إنشاء الحساب')}
         </button>
@@ -303,7 +303,7 @@ export function RentlyHomepage() {
               </button>
             </div>
           ) : (
-            <a href="#portfolio" className="hidden shrink-0 whitespace-nowrap rounded-sm bg-[#102238] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white sm:inline-flex sm:px-4">{t('Owner sign in', 'دخول المالك')}</a>
+            <a href="#portfolio" className="hidden shrink-0 whitespace-nowrap rounded-sm bg-[#3f7cff] px-3 py-2.5 font-mono text-[9px] uppercase tracking-[.06em] text-white transition-colors hover:bg-[#2f68e0] sm:inline-flex sm:px-4">{t('Owner sign in', 'دخول المالك')}</a>
           )}
         </div>
       </header>

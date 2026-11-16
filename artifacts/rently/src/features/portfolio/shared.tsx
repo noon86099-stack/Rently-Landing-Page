@@ -6,7 +6,7 @@ export const labelCls = 'grid gap-1 font-mono text-[8px] uppercase tracking-[.08
 export const inputCls =
   'pointer-events-auto min-h-9 w-full min-w-0 border border-[#cbd7e1] bg-white px-2.5 font-sans text-[12px] normal-case tracking-normal text-[#102238] outline-none focus:border-[#3f7cff] focus:ring-1 focus:ring-[#3f7cff] aria-[invalid=true]:border-red-500';
 export const primaryBtn =
-  'inline-flex min-h-9 items-center justify-center gap-2 bg-[#102238] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white transition-colors hover:bg-[#1c3757] disabled:opacity-60';
+  'inline-flex min-h-9 items-center justify-center gap-2 bg-[#3f7cff] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white transition-colors hover:bg-[#2f68e0] disabled:opacity-60';
 export const ghostBtn =
   'inline-flex min-h-8 items-center gap-1.5 border border-[#c5d4e0] bg-[#f2f6f9] px-2.5 py-1.5 font-mono text-[8px] uppercase tracking-[.06em] text-[#315b91] transition-colors hover:border-[#3f7cff] disabled:opacity-60';
 

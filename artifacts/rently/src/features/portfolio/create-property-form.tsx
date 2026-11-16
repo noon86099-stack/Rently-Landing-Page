@@ -80,7 +80,7 @@ export function CreatePropertyForm({ token, userId, onCreated, embedded = false,
   if (!open) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" data-testid="button-open-create-property" onClick={() => { setOpen(true); setSuccess(''); }} className={`${ghostBtn} min-h-10 text-[10px]`}><Plus size={13} /> {t('Add property', 'إضافة عقار')}</button>
+      <button type="button" data-testid="button-open-create-property" onClick={() => { setOpen(true); setSuccess(''); }} className={`${primaryBtn} min-h-10 text-[10px]`}><Plus size={13} /> {t('Add property', 'إضافة عقار')}</button>
         <FormNotice error={error} success={success} />
       </div>
     );

@@ -233,10 +233,10 @@ export function OwnerDashboard({
   return (
     <section aria-label={t('Dashboard overview', 'نظرة عامة')} className="space-y-5">
       <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={onAddProperty} data-testid="action-add-property" className="inline-flex min-h-10 items-center justify-center gap-2 border border-[#cbd7e1] bg-white px-4 text-xs font-semibold text-[#31506e] transition hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]">
+            <button type="button" onClick={onAddProperty} data-testid="action-add-property" className="inline-flex min-h-10 items-center justify-center gap-2 border border-[#3f7cff] bg-[#3f7cff] px-4 text-xs font-semibold text-white transition hover:border-[#2f68e0] hover:bg-[#2f68e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]">
               <Plus size={15} /> {t('Add property', 'إضافة عقار')}
             </button>
-            <button type="button" onClick={onAddTenantLease} data-testid="action-add-tenant-lease" className="inline-flex min-h-10 items-center justify-center gap-2 bg-[#102238] px-4 text-xs font-semibold text-white transition hover:bg-[#1b3858] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]">
+            <button type="button" onClick={onAddTenantLease} data-testid="action-add-tenant-lease" className="inline-flex min-h-10 items-center justify-center gap-2 bg-[#3f7cff] px-4 text-xs font-semibold text-white transition hover:bg-[#2f68e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]">
               <Plus size={15} /> {t('Add tenant & lease', 'إضافة مستأجر وعقد')}
             </button>
       </div>

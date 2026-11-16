@@ -458,3 +458,9 @@ html[lang='ar'] h3, html[lang='ar'] h4 { line-height: 1.45; }
 html[lang='ar'] :is(.text-\[7px\], .text-\[8px\]) { font-size: 10px; }
 html[lang='ar'] :is(.text-\[9px\]) { font-size: 10.5px; }
 html[lang='ar'] [dir='ltr'], html[lang='ar'] input[type='email'], html[lang='ar'] input[type='date'], html[lang='ar'] input[type='number'], html[lang='ar'] input[type='tel'] { font-family: var(--app-font-sans); }
+
+/* Keep controls rounded consistently, including button-styled links. */
+button,
+a[class*='bg-'] {
+  border-radius: 0.5rem;
+}

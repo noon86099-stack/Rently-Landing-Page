@@ -258,7 +258,7 @@ export function LeaseDocumentControl({ leaseId, onStatusChange }: {
             data-testid={`button-download-lease-${leaseId}`}
             onClick={() => void download()}
             disabled={downloading || loading}
-            className="inline-flex h-9 items-center gap-2 bg-[#102238] px-3 text-[11px] font-semibold text-white hover:bg-[#214a83] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
+            className="inline-flex h-9 items-center gap-2 bg-[#3f7cff] px-3 text-[11px] font-semibold text-white hover:bg-[#2f68e0] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
           >
             <Download size={13} />
             {downloading ? t('Preparing download…', 'جارٍ تجهيز التنزيل…') : t('Download lease', 'تنزيل العقد')}
@@ -269,7 +269,7 @@ export function LeaseDocumentControl({ leaseId, onStatusChange }: {
           data-testid={`button-upload-lease-${leaseId}`}
           onClick={() => inputRef.current?.click()}
           disabled={uploading || loading}
-          className="inline-flex h-9 items-center gap-2 border border-[#c6d3df] bg-[#f4f7f9] px-3 text-[11px] font-semibold text-[#102238] hover:border-[#3f7cff] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
+          className="inline-flex h-9 items-center gap-2 bg-[#3f7cff] px-3 text-[11px] font-semibold text-white transition-colors hover:bg-[#2f68e0] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
         >
           {uploading ? <RefreshCw size={13} className="animate-spin" /> : <Upload size={13} />}
           {uploading ? t('Uploading file…', 'جارٍ رفع الملف…') : document ? t('Replace file', 'استبدال الملف') : t('Upload lease file', 'رفع ملف العقد')}

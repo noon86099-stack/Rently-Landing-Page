@@ -16,7 +16,7 @@ export function LanguageSwitcher() {
           aria-label={choice === 'ar' ? t('Arabic', 'العربية') : t('English', 'الإنجليزية')}
           aria-pressed={language === choice}
           onClick={() => setLanguage(choice)}
-          className={`min-h-8 min-w-8 px-1.5 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] sm:px-2 sm:text-[11px] ${language === choice ? 'bg-[#102238] text-white' : 'text-[#53677c] hover:bg-[#e0e8f0]'}`}
+          className={`min-h-8 min-w-8 px-1.5 text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] sm:px-2 sm:text-[11px] ${language === choice ? 'bg-[#3f7cff] text-white' : 'text-[#53677c] hover:bg-[#e0e8f0]'}`}
         >
           {choice === 'ar'
             ? <><span className="sm:hidden">ع</span><span className="hidden sm:inline">العربية</span></>

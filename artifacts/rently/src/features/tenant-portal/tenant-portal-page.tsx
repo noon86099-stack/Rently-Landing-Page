@@ -106,7 +106,7 @@ export function TenantPortalPage() {
             <button
               type="submit"
               disabled={lookup.isPending}
-              className="inline-flex min-h-11 items-center justify-center bg-[#102238] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#1c3757] disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex min-h-11 items-center justify-center bg-[#3f7cff] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2f68e0] disabled:cursor-wait disabled:opacity-60"
             >
               {lookup.isPending ? t('Checking…', 'جارٍ التحقق…') : t('View rent status', 'عرض حالة الإيجار')}
             </button>

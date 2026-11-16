@@ -138,7 +138,7 @@ function PropertyDetailPanel({
             <p className="mt-2 text-sm text-[#718398]"><bdi>{propertyLocation(property)}</bdi></p>
             <p className="mt-2 text-xs text-[#61768b]">{propertyType ? text(propertyType) : property.property_type}</p>
           </div>
-          <Link href={`/tenants/${encodeURIComponent(property.id)}`} className="inline-flex min-h-10 items-center gap-2 bg-[#102238] px-4 py-2 text-xs font-semibold text-white">
+          <Link href={`/tenants/${encodeURIComponent(property.id)}`} className="inline-flex min-h-10 items-center gap-2 bg-[#3f7cff] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#2f68e0]">
             <Plus size={14} /> {t('Add tenant and lease', 'إضافة مستأجر وعقد')}
           </Link>
         </div>
@@ -343,7 +343,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
                 key={href}
                 href={href}
                 aria-current={active ? 'page' : undefined}
-                className={`inline-flex min-h-10 shrink-0 items-center gap-2 border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] ${active ? 'border-[#102238] bg-[#102238] text-white' : 'border-transparent text-[#61768b] hover:border-[#cbd7e1] hover:bg-white'}`}
+                className={`inline-flex min-h-10 shrink-0 items-center gap-2 border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] ${active ? 'border-[#3f7cff] bg-[#3f7cff] text-white' : 'border-transparent text-[#61768b] hover:border-[#cbd7e1] hover:bg-white'}`}
               >
                 <Icon size={14} /> {label}
               </Link>
@@ -513,7 +513,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold">{t('Add tenant and lease', 'إضافة مستأجر وعقد')}</h2>
                 {!showLeaseForm && properties.length > 0 && (
-                  <button type="button" onClick={() => setShowLeaseForm(true)} className="inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 text-xs font-semibold text-white">
+                  <button type="button" onClick={() => setShowLeaseForm(true)} className="inline-flex min-h-9 items-center gap-2 bg-[#3f7cff] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#2f68e0]">
                     <Plus size={13} /> {t('Add', 'إضافة')}
                   </button>
                 )}

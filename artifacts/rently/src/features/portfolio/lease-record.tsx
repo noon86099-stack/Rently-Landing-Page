@@ -7,7 +7,7 @@ import { LeaseDocumentControl } from '@/features/leases/lease-document-control';
 import { leaseStatusOnDate } from './lease-status';
 import { PaymentCorrection } from './payment-correction';
 import { message, useI18n, useLocalizedFormats, type UiMessage } from '@/lib/i18n';
-import { FormNotice, authRequest, errorMessage, ghostBtn, invalidatePortfolio } from './shared';
+import { FormNotice, authRequest, errorMessage, ghostBtn, invalidatePortfolio, primaryBtn } from './shared';
 
 type Ctx = { token: string; userId: string; propertyId: string; today: string };
 
@@ -50,7 +50,7 @@ function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
             data-testid={`button-record-payment-${payment.id}`}
             disabled={record.isPending}
             onClick={() => void recordPayment()}
-            className={ghostBtn}
+            className={primaryBtn}
           >
             {record.isPending && <LoaderCircle size={10} className="animate-spin" />}
             {t('Mark paid today', 'تسجيل كمدفوع اليوم')}
@@ -86,7 +86,7 @@ export function LeasePdfDownloadButton({ leaseId, token }: { leaseId: string; to
 
   return (
     <div className="grid gap-1">
-      <button type="button" data-testid={`button-download-pdf-${leaseId}`} disabled={pdf.isFetching} onClick={() => void download()} className={ghostBtn}>{pdf.isFetching ? <LoaderCircle size={10} className="animate-spin" /> : <Download size={10} />}{t('Download draft lease PDF', 'تنزيل مسودة العقد PDF (بالإنجليزية)')}</button>
+      <button type="button" data-testid={`button-download-pdf-${leaseId}`} disabled={pdf.isFetching} onClick={() => void download()} className={primaryBtn}>{pdf.isFetching ? <LoaderCircle size={10} className="animate-spin" /> : <Download size={10} />}{t('Download draft lease PDF', 'تنزيل مسودة العقد PDF (بالإنجليزية)')}</button>
       <FormNotice error={error} />
     </div>
   );

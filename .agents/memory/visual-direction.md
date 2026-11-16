@@ -20,3 +20,9 @@ After sign-in, focus the interface on the owner's actual data and reduce excess 
 **Why:** The user requested: «اجعل الواجهة بعد تسجيل الدخول مركزة على البيانات وقلل الكلام الكثير الزائد».
 
 **How to apply:** Treat the signed-in owner workspace separately from the public marketing page; keep essential validation and payment confirmations.
+
+Important primary actions should be bright blue, and all buttons should have rounded corners.
+
+**Why:** The user requested clear blue for important buttons and rounded edges for every button.
+
+**How to apply:** Use blue for primary actions across public and signed-in Rently screens, while keeping every button and button-style link rounded.

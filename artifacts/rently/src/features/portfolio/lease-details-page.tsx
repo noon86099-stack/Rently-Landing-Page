@@ -112,7 +112,7 @@ export function LeaseDetailsPage({
           type="button"
           data-testid="button-lease-details-dashboard"
           onClick={onGoToDashboard}
-          className="inline-flex min-h-10 items-center gap-2 bg-[#102238] px-4 py-2 text-[11px] font-semibold text-white"
+          className="inline-flex min-h-10 items-center gap-2 bg-[#3f7cff] px-4 py-2 text-[11px] font-semibold text-white transition-colors hover:bg-[#2f68e0]"
         >
           <Home size={13} />
           {t('Back to dashboard', 'العودة إلى لوحة التحكم')}

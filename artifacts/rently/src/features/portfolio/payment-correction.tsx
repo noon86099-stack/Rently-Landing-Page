@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCorrectRentlyPayment, useListRentlyPaymentCorrections } from '@workspace/api-client-react';
 import type { Payment } from '@/lib/rently-data';
 import { message, useI18n, useLocalizedFormats, type UiMessage } from '@/lib/i18n';
-import { FormNotice, authRequest, errorMessage, ghostBtn, inputCls, invalidatePortfolio, labelCls } from './shared';
+import { FormNotice, authRequest, errorMessage, ghostBtn, inputCls, invalidatePortfolio, labelCls, primaryBtn } from './shared';
 
 type Props = {
   payment: Payment;
@@ -79,7 +79,7 @@ export function PaymentCorrection({ payment, ctx }: Props) {
           {t('I confirm this date correction. My identity, reason, previous date and new date will be saved permanently.', 'أؤكد تصحيح هذا التاريخ. ستُحفظ هويتي والسبب والتاريخ السابق والجديد بشكل دائم.')}
         </label>
         <div className="flex gap-2">
-          <button disabled={correction.isPending || !confirmed} className={ghostBtn}>{correction.isPending ? t('Saving…', 'جارٍ الحفظ…') : t('Confirm correction', 'تأكيد التصحيح')}</button>
+          <button disabled={correction.isPending || !confirmed} className={primaryBtn}>{correction.isPending ? t('Saving…', 'جارٍ الحفظ…') : t('Confirm correction', 'تأكيد التصحيح')}</button>
           <button type="button" disabled={correction.isPending} className={ghostBtn} onClick={() => setOpen(false)}>{t('Cancel', 'إلغاء')}</button>
         </div>
         <FormNotice error={error} />
