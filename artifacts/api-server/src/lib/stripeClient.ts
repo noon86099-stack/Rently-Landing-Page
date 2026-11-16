@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { StripeSync } from "stripe-replit-sync";
 
-let stripeSyncReady = false;
+let stripeClientReady = false;
 
 function connectionError(reason: string): Error {
   const error = new Error("Stripe connection is unavailable.");
@@ -9,15 +9,35 @@ function connectionError(reason: string): Error {
   return error;
 }
 
-export function markStripeSyncReady() {
-  stripeSyncReady = true;
+export function markStripeClientReady() {
+  stripeClientReady = true;
 }
 
-export function isStripeSyncReady() {
-  return stripeSyncReady;
+export function isStripeClientReady() {
+  return stripeClientReady;
 }
 
-async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecret?: string }> {
+export function usesManualStripeApiKey() {
+  return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
+}
+
+async function getStripeCredentials(): Promise<{
+  secretKey: string;
+  webhookSecret?: string;
+  source: "manual" | "connector";
+}> {
+  const manualSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
+  if (manualSecretKey) {
+    if (!manualSecretKey.startsWith("sk_test_") && !manualSecretKey.startsWith("rk_test_")) {
+      throw connectionError("StripeTestModeRequired");
+    }
+    return {
+      secretKey: manualSecretKey,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+      source: "manual",
+    };
+  }
+
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const token = process.env.REPL_IDENTITY
     ? `repl ${process.env.REPL_IDENTITY}`
@@ -52,7 +72,7 @@ async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecre
     throw connectionError("StripeTestModeRequired");
   }
 
-  return { secretKey, webhookSecret: settings?.webhook_secret };
+  return { secretKey, webhookSecret: settings?.webhook_secret, source: "connector" };
 }
 
 export async function getUncachableStripeClient(): Promise<Stripe> {
@@ -65,7 +85,10 @@ export async function getStripeSync(): Promise<StripeSync> {
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is required for Stripe's managed data sync.");
   }
-  const { secretKey, webhookSecret } = await getStripeCredentials();
+  const { secretKey, webhookSecret, source } = await getStripeCredentials();
+  if (source === "manual") {
+    throw connectionError("StripeManagedWebhookRequiresConnector");
+  }
   return new StripeSync({
     poolConfig: { connectionString: databaseUrl },
     stripeSecretKey: secretKey,

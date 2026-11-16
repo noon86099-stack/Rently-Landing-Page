@@ -6,7 +6,7 @@ import {
   recordRentlyStripePayment,
   saveRentlyStripeCheckoutSession,
 } from "./rently-tenant-portal-db";
-import { getUncachableStripeClient, isStripeSyncReady } from "./stripeClient";
+import { getUncachableStripeClient, isStripeClientReady } from "./stripeClient";
 
 export class RentlyStripeCheckoutError extends Error {
   constructor(readonly code: "not_found" | "already_paid" | "unavailable") {
@@ -70,7 +70,7 @@ async function getRentPrice(stripe: Stripe, cents: number) {
 
 export async function createRentlyTenantCheckout(email: string, phone: string): Promise<string> {
   try {
-    if (!isStripeSyncReady()) throw new RentlyStripeCheckoutError("unavailable");
+    if (!isStripeClientReady()) throw new RentlyStripeCheckoutError("unavailable");
     const payment = await findRentlyTenantPortalCheckoutPayment(email, phone);
     if (!payment) throw new RentlyStripeCheckoutError("not_found");
     if (payment.paidAt) throw new RentlyStripeCheckoutError("already_paid");
@@ -164,7 +164,7 @@ async function confirmRentlyTenantCheckout(session: Stripe.Checkout.Session): Pr
 }
 
 export async function confirmRentlyTenantCheckoutSession(sessionId: string): Promise<boolean> {
-  if (!isStripeSyncReady()) return false;
+  if (!isStripeClientReady()) return false;
   const stripe = await getUncachableStripeClient();
   const session = await stripe.checkout.sessions.retrieve(sessionId);
   return confirmRentlyTenantCheckout(session);

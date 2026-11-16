@@ -1,7 +1,7 @@
 import { logger } from "./logger";
 import { listUnpaidRentlyStripeSessions } from "./rently-tenant-portal-db";
 import { confirmRentlyTenantCheckoutSession } from "./rently-stripe-payments";
-import { isStripeSyncReady } from "./stripeClient";
+import { isStripeClientReady } from "./stripeClient";
 
 // A tenant can close Stripe's tab before returning to Rently. Reconcile saved
 // session references independently of that redirect, without changing webhooks.
@@ -9,7 +9,7 @@ export function startRentlyStripeReconciliation() {
   let busy = false;
   let cursor: string | null = null;
   const tick = async () => {
-    if (busy || !isStripeSyncReady()) return;
+    if (busy || !isStripeClientReady()) return;
     busy = true;
     try {
       const sessions = await listUnpaidRentlyStripeSessions(cursor);

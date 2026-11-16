@@ -1,7 +1,12 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "stripe-replit-sync";
-import { getStripeSync, getUncachableStripeClient, markStripeSyncReady } from "./lib/stripeClient";
+import {
+  getStripeSync,
+  getUncachableStripeClient,
+  markStripeClientReady,
+  usesManualStripeApiKey,
+} from "./lib/stripeClient";
 import { startRentlyStripeReconciliation } from "./lib/rently-stripe-reconciliation";
 
 const rawPort = process.env["PORT"];
@@ -43,6 +48,13 @@ async function initializeStripe() {
       throw new Error("The connected Stripe account does not match the confirmed Rently account.");
     }
 
+    if (usesManualStripeApiKey()) {
+      markStripeClientReady();
+      startRentlyStripeReconciliation();
+      logger.info({ mode: "test_api" }, "Stripe Test API enabled for Rently checkout.");
+      return;
+    }
+
     stage = "database_configuration";
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
@@ -67,7 +79,7 @@ async function initializeStripe() {
 
     stage = "stripe_backfill";
     await stripeSync.syncBackfill({ object: "all" });
-    markStripeSyncReady();
+    markStripeClientReady();
     startRentlyStripeReconciliation();
   } catch (error) {
     logger.error(
