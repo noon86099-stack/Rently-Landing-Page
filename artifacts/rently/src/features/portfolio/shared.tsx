@@ -4,7 +4,7 @@ import { message, useI18n, type UiMessage } from '@/lib/i18n';
 
 export const labelCls = 'grid gap-1 font-mono text-[8px] uppercase tracking-[.08em] text-[#667b8e]';
 export const inputCls =
-  'min-h-9 w-full min-w-0 border border-[#cbd7e1] bg-white px-2.5 font-sans text-[12px] normal-case tracking-normal text-[#102238] outline-none focus:border-[#3f7cff] focus:ring-1 focus:ring-[#3f7cff] aria-[invalid=true]:border-red-500';
+  'pointer-events-auto min-h-9 w-full min-w-0 border border-[#cbd7e1] bg-white px-2.5 font-sans text-[12px] normal-case tracking-normal text-[#102238] outline-none focus:border-[#3f7cff] focus:ring-1 focus:ring-[#3f7cff] aria-[invalid=true]:border-red-500';
 export const primaryBtn =
   'inline-flex min-h-9 items-center justify-center gap-2 bg-[#102238] px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.06em] text-white transition-colors hover:bg-[#1c3757] disabled:opacity-60';
 export const ghostBtn =
