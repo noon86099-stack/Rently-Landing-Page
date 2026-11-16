@@ -3,11 +3,11 @@ name: Stripe payment scope
 description: User-approved Stripe account and test-payment constraints for Rently.
 ---
 
-Use the currently connected **Rently Landing Page Sandbox** for test payments. The user initially selected a different Rently sandbox, then explicitly approved using the existing connection instead. Do not use the old LunaPaws account. Successful rent payments should appear to the landlord.
+The user now wants real rent payments to go directly to each landlord's own Stripe account using Stripe Connect. The currently connected Rently Stripe account is only the platform account; no landlord payout onboarding has been implemented yet. Do not route landlord funds to Rently by default.
 
-**Why:** After account-switching proved confusing, the user answered “نعم، استخدمه” to using the already connected account for test payments only.
+**Why:** The user explicitly chose real payments and selected each landlord as the recipient.
 
-**How to apply:** Verify the connected Stripe account before enabling Checkout. Do not assume that two Rently-branded sandboxes are the same account. Do not enable live payments or landlord payouts without a new request.
+**How to apply:** Use Stripe Connect so each landlord links and verifies their own account. Confirm who bears Stripe's processing fees before choosing the charge type. Do not assume that Rently's connected account is the landlord's payout destination.
 
 Connector credential responses can use either `secret` or `secret_key`; support both without logging either value. Keep `stripe-replit-sync` external to server bundling.
 
