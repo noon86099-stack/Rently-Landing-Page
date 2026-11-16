@@ -49,7 +49,6 @@ function DatePartsInput({ testId, value, min, invalid, label, onChange }: {
 }) {
   const { t, direction } = useI18n();
   const [parts, setParts] = useState(() => datePartsFromIso(value));
-  const pickerRef = useRef<HTMLInputElement>(null);
   const lastValue = useRef(value);
 
   useEffect(() => {
@@ -64,8 +63,9 @@ function DatePartsInput({ testId, value, min, invalid, label, onChange }: {
     const next = { ...parts, [part]: normalizeDateDigits(input).slice(0, maxLength) };
     const iso = isoFromDateParts(next);
     if (iso) {
-      const normalized = datePartsFromIso(iso);
-      setParts(normalized);
+      // Keep the user's in-progress digits intact. Padding immediately to "01"
+      // can steal the caret and prevent entering the second digit on mobile.
+      setParts(next);
       lastValue.current = iso;
       onChange(iso);
     } else {
@@ -106,43 +106,20 @@ function DatePartsInput({ testId, value, min, invalid, label, onChange }: {
           />
         </label>
       ))}
-      <button
-        type="button"
-        aria-label={t('Choose date from calendar', 'اختر التاريخ من التقويم')}
-        onClick={() => {
-          const picker = pickerRef.current;
-          if (!picker) return;
-          try {
-            if (typeof picker.showPicker === 'function') {
-              picker.showPicker();
-              return;
-            }
-          } catch {
-            // Embedded previews can reject showPicker() across origins.
-          }
-          try {
-            picker.click();
-          } catch {
-            // The date can still be entered using the day, month, and year fields.
-          }
-        }}
-        className="grid h-9 w-9 place-items-center border border-[#cbd7e1] bg-white text-[#315b91] hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
-      >
-        <CalendarDays size={14} />
-      </button>
-      <input
-        ref={pickerRef}
-        type="date"
-        tabIndex={-1}
-        aria-hidden="true"
-        data-testid={`${testId}-picker`}
-        className="sr-only"
-        dir="ltr"
-        lang="en-GB"
-        value={value}
-        min={min}
-        onChange={(event) => selectFromCalendar(event.target.value)}
-      />
+      <label className="relative grid h-9 w-9 cursor-pointer place-items-center border border-[#cbd7e1] bg-white text-[#315b91] hover:border-[#3f7cff] focus-within:ring-2 focus-within:ring-[#3f7cff]">
+        <CalendarDays size={14} aria-hidden="true" />
+        <input
+          type="date"
+          aria-label={t('Choose date from calendar', 'اختر التاريخ من التقويم')}
+          data-testid={`${testId}-picker`}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          dir="ltr"
+          lang="en-GB"
+          value={value}
+          min={min}
+          onChange={(event) => selectFromCalendar(event.target.value)}
+        />
+      </label>
     </div>
   );
 }

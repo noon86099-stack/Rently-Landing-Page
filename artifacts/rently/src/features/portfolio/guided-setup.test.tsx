@@ -87,10 +87,14 @@ test('unit and lease forms retain both languages after merging retry protection'
   assert.match(arLease, /حفظ المستأجر والعقد/);
   const enStartDay = inputTag(enLease, 'input-lease-start-day');
   const arStartDay = inputTag(arLease, 'input-lease-start-day');
+  const arDatePicker = inputTag(arLease, 'input-lease-start-picker');
   assert.match(enStartDay, /aria-label="Day"/);
   assert.match(enStartDay, /dir="ltr"/);
   assert.match(arStartDay, /aria-label="اليوم"/);
   assert.match(arStartDay, /dir="ltr"/);
+  assert.match(arDatePicker, /type="date"/);
+  assert.match(arDatePicker, /aria-label="اختر التاريخ من التقويم"/);
+  assert.doesNotMatch(arDatePicker, /aria-hidden|tabindex="-1"/i);
   assert.match(enLease, /placeholder="DD"/);
   assert.match(enLease, /placeholder="MM"/);
   assert.match(enLease, /placeholder="YYYY"/);
