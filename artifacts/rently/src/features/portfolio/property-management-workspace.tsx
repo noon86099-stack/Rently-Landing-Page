@@ -530,12 +530,35 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
                 <EmptyState title={t('Add a property first.', 'أضف عقارًا أولًا.')} action={<Link href="/properties" className="text-xs font-semibold text-[#315b91] underline">{t('Go to properties', 'الانتقال إلى العقارات')}</Link>} />
               ) : showLeaseForm ? (
                 <div className="space-y-4">
-                  <label className="grid gap-1.5 text-xs font-semibold text-[#425b72]">
-                    {t('Existing property', 'العقار الحالي')}
-                    <select value={tenantPropertyId} onChange={(event) => setTenantPropertyId(event.target.value)} className="min-h-10 border border-[#cbd7e1] bg-white px-3 text-sm font-normal text-[#102238]">
-                      {properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}
-                    </select>
-                  </label>
+                  <div className="grid gap-1.5">
+                    <p className="text-xs font-semibold text-[#425b72]">{t('Choose a property', 'اختر العقار')}</p>
+                    <div role="group" aria-label={t('Choose a property', 'اختر العقار')} className="grid max-h-48 gap-2 overflow-y-auto sm:grid-cols-2">
+                      {properties.map((property) => {
+                        const selected = property.id === tenantPropertyId;
+                        return (
+                          <button
+                            key={property.id}
+                            type="button"
+                            aria-pressed={selected}
+                            data-testid={`button-tenant-property-${property.id}`}
+                            onClick={() => setTenantPropertyId(property.id)}
+                            className={`flex min-h-12 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] ${selected ? 'border-[#3f7cff] bg-[#eef4ff] text-[#102238]' : 'border-[#cbd7e1] bg-white text-[#425b72] hover:border-[#3f7cff]'}`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-xs font-semibold"><bdi>{property.name}</bdi></span>
+                              {property.street_address && <span className="mt-0.5 block truncate text-[10px] text-[#718398]"><bdi>{property.street_address}</bdi></span>}
+                            </span>
+                            {selected && <Check size={15} aria-hidden="true" className="shrink-0 text-[#315fdb]" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedTenantProperty && (
+                      <p role="status" data-testid="text-selected-tenant-property" className="text-[11px] text-[#61768b]">
+                        {t('Selected:', 'المحدد:')} <bdi className="font-semibold text-[#102238]">{selectedTenantProperty.name}</bdi>
+                      </p>
+                    )}
+                  </div>
                   {!selectedTenantProperty ? null : selectedTenantDetailsQuery?.isPending ? (
                     <p role="status" className="flex items-center gap-2 text-xs text-[#718398]"><LoaderCircle size={14} className="animate-spin" />{t('Loading units…', 'جارٍ تحميل الوحدات…')}</p>
                   ) : selectedTenantDetailsQuery?.isError ? (
