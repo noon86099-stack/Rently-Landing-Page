@@ -61,7 +61,7 @@ function PaymentRow({ payment, ctx }: { payment: Payment; ctx: Ctx }) {
   );
 }
 
-function PdfButton({ leaseId, token }: { leaseId: string; token: string }) {
+export function LeasePdfDownloadButton({ leaseId, token }: { leaseId: string; token: string }) {
   const { t, direction } = useI18n();
   const [error, setError] = useState<UiMessage>('');
   const pdf = useDownloadRentlyLeasePdf(leaseId, {
@@ -85,7 +85,7 @@ function PdfButton({ leaseId, token }: { leaseId: string; token: string }) {
 
   return (
     <div className="grid gap-1">
-      <button type="button" data-testid={`button-download-pdf-${leaseId}`} disabled={pdf.isFetching} onClick={() => void download()} className={ghostBtn}>{pdf.isFetching ? <LoaderCircle size={10} className="animate-spin" /> : <Download size={10} />}{t('Lease PDF (English draft)', 'ملف PDF للعقد (مسودة بالإنجليزية)')}</button>
+      <button type="button" data-testid={`button-download-pdf-${leaseId}`} disabled={pdf.isFetching} onClick={() => void download()} className={ghostBtn}>{pdf.isFetching ? <LoaderCircle size={10} className="animate-spin" /> : <Download size={10} />}{t('Download draft lease PDF', 'تنزيل مسودة العقد PDF (بالإنجليزية)')}</button>
       <FormNotice error={error} />
     </div>
   );
@@ -111,7 +111,7 @@ export function LeaseRecord({ lease, ctx }: { lease: Lease; ctx: Ctx }) {
           <p data-testid={`text-tenant-${lease.id}`} dir="auto" className="truncate text-[11px] font-semibold">{tenant?.full_name ?? t('Tenant unavailable', 'المستأجر غير متاح')}</p>
           <p className="mt-0.5 font-mono text-[8px] text-[#778a9c]"><bdi dir={direction}>{formatDate(lease.start_date)} / {formatDate(lease.end_date)}</bdi> <span className="uppercase text-[#47617a]">[{statusLabel[lease.status] ?? lease.status}]</span></p>
         </div>
-        {hasTerms && <PdfButton leaseId={lease.id} token={ctx.token} />}
+        {hasTerms && <LeasePdfDownloadButton leaseId={lease.id} token={ctx.token} />}
       </div>
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-4">
         <div><dt className={dt}>{t('Email', 'البريد')}</dt><dd dir="ltr" className="break-all text-start text-[9px] font-semibold">{tenant?.email ?? '--'}</dd></div>

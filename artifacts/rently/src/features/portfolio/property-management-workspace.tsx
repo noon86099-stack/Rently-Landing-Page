@@ -373,6 +373,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
           recentLease ? (
             <LeaseDetailsPage
               {...recentLease}
+              token={token}
               showCreatedConfirmation
               onGoToDashboard={() => setLocation('/properties')}
             />
@@ -382,6 +383,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
               propertyId={savedLeaseEntry.property.id}
               propertyName={savedLeaseEntry.property.name}
               unitLabel={savedLeaseEntry.unit.unit_label}
+              token={token}
               showCreatedConfirmation={false}
               onGoToDashboard={() => setLocation('/properties')}
             />

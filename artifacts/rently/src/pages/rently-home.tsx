@@ -306,7 +306,7 @@ export function RentlyHomepage() {
       </header>
 
       {createdLeaseDetails ? (
-        <LeaseDetailsPage {...createdLeaseDetails} onGoToDashboard={goToDashboard} />
+        <LeaseDetailsPage {...createdLeaseDetails} token={token} onGoToDashboard={goToDashboard} />
       ) : (
         <>
       <section className={user ? 'mx-auto grid max-w-[1440px] px-4 pb-10 pt-5 md:px-8 md:pt-6 lg:px-10' : 'mx-auto grid max-w-[1440px] gap-10 px-5 pb-16 pt-12 md:px-12 md:pb-24 md:pt-16 lg:grid-cols-[.72fr_1.28fr] lg:items-center lg:gap-12 lg:px-[7.4%]'}>

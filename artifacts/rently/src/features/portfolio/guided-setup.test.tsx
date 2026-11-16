@@ -152,6 +152,7 @@ test('lease details confirms creation, shows tenant and lease terms, and offers 
     propertyId: 'property-a',
     propertyName: 'Cedar House',
     unitLabel: 'Unit 02',
+    token: 'test-token',
     onGoToDashboard() {},
   });
 

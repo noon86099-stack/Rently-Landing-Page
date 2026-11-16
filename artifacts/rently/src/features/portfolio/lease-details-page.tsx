@@ -1,5 +1,6 @@
 import { Check, Home } from 'lucide-react';
 import { LeaseDocumentControl } from '@/features/leases/lease-document-control';
+import { LeasePdfDownloadButton } from './lease-record';
 import { useI18n, useLocalizedFormats } from '@/lib/i18n';
 
 export type LeaseDetailsData = {
@@ -27,9 +28,10 @@ export function LeaseDetailsPage({
   lease,
   propertyName,
   unitLabel,
+  token,
   onGoToDashboard,
   showCreatedConfirmation = true,
-}: CreatedLeaseDetails & { onGoToDashboard: () => void; showCreatedConfirmation?: boolean }) {
+}: CreatedLeaseDetails & { token: string; onGoToDashboard: () => void; showCreatedConfirmation?: boolean }) {
   const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
   const nextPayment = [...lease.payments]
@@ -94,7 +96,14 @@ export function LeaseDetailsPage({
       </dl>
 
       <div className="border-t border-[#d8e1e8] bg-white px-4 py-4 md:px-6">
-        <h2 className="mb-2 text-[11px] font-semibold">{t('Signed lease file', 'ملف العقد الموقّع')}</h2>
+        <h2 className="text-[11px] font-semibold">{t('Lease document', 'مستند العقد')}</h2>
+        <p className="mt-1 text-[11px] leading-5 text-[#718398]">
+          {t('The lease record and payment schedule are already saved. Download a draft or attach the signed PDF later; uploading is optional.', 'تم حفظ سجل الإيجار وجدول الاستحقاقات. يمكنك تنزيل مسودة أو إرفاق ملف PDF الموقّع لاحقًا؛ الرفع اختياري.')}
+        </p>
+        <div className="mt-2">
+          <LeasePdfDownloadButton leaseId={lease.id} token={token} />
+        </div>
+        <h3 className="mb-2 mt-4 text-[11px] font-semibold">{t('Signed lease file (optional)', 'ملف العقد الموقّع (اختياري)')}</h3>
         <LeaseDocumentControl leaseId={lease.id} />
       </div>
 
