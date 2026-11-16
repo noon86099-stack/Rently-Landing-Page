@@ -16,6 +16,7 @@ function httpStatus(error: unknown): number | undefined {
 export function TenantPortalPage() {
   const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
+  const isPublishedDemo = import.meta.env.PROD;
   const lookup = useLookupRentlyTenantPortal();
   const checkout = useCreateRentlyTenantPortalCheckout();
   const [email, setEmail] = useState('');
@@ -24,7 +25,9 @@ export function TenantPortalPage() {
   const [error, setError] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [simulationComplete, setSimulationComplete] = useState(false);
   const [checkoutNotice] = useState<'success' | 'pending' | 'cancelled' | null>(() => {
+    if (isPublishedDemo) return null;
     const payment = new URLSearchParams(window.location.search).get('payment');
     return payment === 'success' || payment === 'pending' || payment === 'cancelled' ? payment : null;
   });
@@ -34,6 +37,7 @@ export function TenantPortalPage() {
     setSummary(null);
     setError('');
     setCheckoutUrl(null);
+    setSimulationComplete(false);
     try {
       const result = await lookup.mutateAsync({ data: { email: email.trim(), phone: phone.trim() } });
       setSummary(result);
@@ -50,6 +54,10 @@ export function TenantPortalPage() {
   }
 
   async function startCheckout() {
+    if (isPublishedDemo) {
+      setSimulationComplete(true);
+      return;
+    }
     setCheckoutError('');
     setCheckoutUrl(null);
     // Open synchronously from the click so browsers do not treat the external
@@ -114,6 +122,11 @@ export function TenantPortalPage() {
           <p className="font-mono text-[9px] uppercase tracking-[.12em] text-[#3f7cff]">{t('Tenant access', 'دخول المستأجر')}</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-[-.05em]">{t('Tenant Portal', 'بوابة المستأجر')}</h1>
           <p className="mt-2 text-sm text-[#61768b]">{t('Enter the email and phone number registered with your landlord.', 'أدخل البريد الإلكتروني ورقم الهاتف المسجلين لدى المالك.')}</p>
+          {isPublishedDemo && (
+            <p role="note" className="mt-4 border-s-2 border-amber-500 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {t('Demo mode: payment is simulated only. No card or rent record is charged or changed.', 'وضع العرض: الدفع محاكاة فقط؛ لا تُستخدم بطاقة ولا يُخصم مبلغ أو يتغير سجل الإيجار.')}
+            </p>
+          )}
           {checkoutNotice && (
             <p
               role="status"
@@ -190,6 +203,11 @@ export function TenantPortalPage() {
               </dl>
               {summary.paymentStatus !== 'paid' && (
                 <>
+                  {simulationComplete && (
+                    <p role="status" className="mt-4 border-s-2 border-amber-500 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      {t('Simulation complete. No money was charged and the actual rent status was not changed.', 'اكتملت المحاكاة. لم يُخصم أي مبلغ ولم تتغير حالة الإيجار الفعلية.')}
+                    </p>
+                  )}
                   {checkoutError && (
                     <p role="alert" className="mt-4 border-s-2 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-800">
                       {checkoutError}
@@ -202,11 +220,13 @@ export function TenantPortalPage() {
                     aria-busy={checkout.isPending}
                     className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-md bg-[#3f7cff] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2f68e0] disabled:cursor-wait disabled:opacity-60"
                   >
-                    {checkout.isPending
-                      ? t('Opening secure checkout…', 'جارٍ فتح صفحة الدفع الآمنة…')
-                      : t('Pay Now', 'ادفع الآن')}
+                    {isPublishedDemo
+                      ? t('Simulate payment', 'محاكاة الدفع')
+                      : checkout.isPending
+                        ? t('Opening secure checkout…', 'جارٍ فتح صفحة الدفع الآمنة…')
+                        : t('Pay Now', 'ادفع الآن')}
                   </button>
-                  {checkoutUrl && (
+                  {!isPublishedDemo && checkoutUrl && (
                     <a
                       href={checkoutUrl}
                       target="_blank"
