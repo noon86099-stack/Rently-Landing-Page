@@ -26,10 +26,19 @@ async function initializeStripe() {
       return;
     }
 
-    stage = "stripe_account_check";
+    stage = "stripe_credentials";
     const stripe = await getUncachableStripeClient();
+    stage = "stripe_account_retrieve";
     const account = await stripe.accounts.retrieve();
+    stage = "stripe_account_binding";
     if (account.id !== expectedAccountId) {
+      logger.error(
+        {
+          expectedAccountSuffix: expectedAccountId.slice(-4),
+          connectedAccountSuffix: account.id.slice(-4),
+        },
+        "Connected Stripe account does not match the selected test account",
+      );
       throw new Error("The connected Stripe account does not match the confirmed Rently account.");
     }
 
