@@ -242,11 +242,23 @@ export function GuidedSetup({ token, userId, onOpenRecords, onLeaseCreated }: Pr
               )}
             </div>
           )}
-          {unit && !lease && <button type="button" onClick={() => setUnitId(null)} className="mt-2 text-[11px] text-[#315b91] underline">{t('Change unit', 'تغيير الوحدة')}</button>}
+          {unit && !lease && (
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <button type="button" onClick={() => setUnitId(null)} className="text-[11px] text-[#315b91] underline">{t('Change unit', 'تغيير الوحدة')}</button>
+              <a
+                href="#setup-step-tenant-lease"
+                data-testid="link-next-tenant-lease"
+                className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-[#3f7cff] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#2f68e0]"
+              >
+                {t('Next: tenant and lease', 'التالي: المستأجر والعقد')}
+                <ArrowLeft size={13} className="ltr:rotate-180" />
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Step 3 */}
-        <div className="p-3 md:p-4">
+        <div id="setup-step-tenant-lease" tabIndex={-1} className="p-3 md:p-4">
           <StepHead n="3" title={t('Tenant and lease', 'المستأجر والعقد')} state={!unit ? 'locked' : lease ? 'done' : 'active'} saved={lease?.tenant.fullName} />
           {unit && !lease && propertyId && details.data && (
             <div className="mt-3 border border-[#d8e1e8] bg-white p-3">

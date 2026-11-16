@@ -112,8 +112,19 @@ function DatePartsInput({ testId, value, min, invalid, label, onChange }: {
         onClick={() => {
           const picker = pickerRef.current;
           if (!picker) return;
-          if (typeof picker.showPicker === 'function') picker.showPicker();
-          else picker.click();
+          try {
+            if (typeof picker.showPicker === 'function') {
+              picker.showPicker();
+              return;
+            }
+          } catch {
+            // Embedded previews can reject showPicker() across origins.
+          }
+          try {
+            picker.click();
+          } catch {
+            // The date can still be entered using the day, month, and year fields.
+          }
         }}
         className="grid h-9 w-9 place-items-center border border-[#cbd7e1] bg-white text-[#315b91] hover:border-[#3f7cff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
       >

@@ -71,12 +71,16 @@ test('guided setup and its property form follow the chosen language and directio
 
 test('unit and lease forms retain both languages after merging retry protection', () => {
   const unit = createElement(AddUnitForm, { userId: 'owner-a', propertyId: 'property-a', token: 'unused' });
+  const guidedUnit = createElement(AddUnitForm, { userId: 'owner-a', propertyId: 'property-a', token: 'unused', trackGuidedSetup: true });
   const lease = createElement(CreateLeaseForm, {
     userId: 'owner-a', propertyId: 'property-a', token: 'unused',
     units: [{ id: 'unit-a', unit_label: 'User supplied name', leases: [] }],
   });
   assert.match(render('en', unit), /Save unit/);
   assert.match(render('ar', unit), /حفظ الوحدة/);
+  assert.match(render('en', guidedUnit), /Save and continue/);
+  assert.match(render('ar', guidedUnit), /حفظ ومتابعة/);
+  assert.doesNotMatch(render('en', unit), /Type the name in the field/);
   const enLease = render('en', lease);
   const arLease = render('ar', lease);
   assert.match(enLease, /Save tenant and lease/);

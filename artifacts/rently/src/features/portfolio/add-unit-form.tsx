@@ -1,7 +1,8 @@
 import { useId, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { LoaderCircle, Plus } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, Plus } from 'lucide-react';
 import { useCreateRentlyUnit, type RentlyUnit } from '@workspace/api-client-react';
+import { Link } from 'wouter';
 import { message, useI18n, type UiMessage } from '@/lib/i18n';
 import { FormNotice, authRequest, inputCls, invalidatePortfolio, primaryBtn } from './shared';
 import { setupErrorMessage, setupRequestId } from './setup-request';
@@ -61,12 +62,23 @@ export function AddUnitForm({ token, userId, propertyId, onCreated, trackGuidedS
   return (
     <form onSubmit={submit} noValidate className="grid gap-2" aria-label={t('Add unit', 'إضافة وحدة')}>
       <label htmlFor={inputId} className="text-[12px] font-semibold text-[#102238]">{t('Unit name or number', 'اسم أو رقم الوحدة')}</label>
-      <div className="grid gap-2">
-        <input ref={inputRef} id={inputId} dir="auto" data-testid="input-unit-label" placeholder={t('e.g. Apartment 1 or Whole house', 'مثال: شقة 1 أو المنزل بالكامل')} value={label} maxLength={80} aria-describedby={`${inputId}-help`} aria-invalid={!!error} disabled={saving} onChange={(e) => { setLabel(e.target.value); setError(''); setSuccess(''); }} className={inputCls} />
-        <button type="submit" data-testid="button-add-unit" disabled={saving} className={`${primaryBtn} min-h-10 text-[12px]`}>{saving ? <LoaderCircle size={12} className="animate-spin" /> : <Plus size={12} />}{saving ? t('Saving…', 'جارٍ الحفظ…') : t('Save unit', 'حفظ الوحدة')}</button>
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <input ref={inputRef} id={inputId} dir="auto" data-testid="input-unit-label" placeholder={t('e.g. Apartment 1 or Whole house', 'مثال: شقة 1 أو المنزل بالكامل')} value={label} maxLength={80} aria-invalid={!!error} disabled={saving} onChange={(e) => { setLabel(e.target.value); setError(''); setSuccess(''); }} className={inputCls} />
+        <button type="submit" data-testid="button-add-unit" disabled={saving} className={`${primaryBtn} min-h-10 rounded-lg text-[12px]`}>
+          {saving ? <LoaderCircle size={12} className="animate-spin" /> : <Plus size={12} />}
+          {saving ? t('Saving…', 'جارٍ الحفظ…') : trackGuidedSetup ? t('Save and continue', 'حفظ ومتابعة') : t('Save unit', 'حفظ الوحدة')}
+        </button>
       </div>
-      <p id={`${inputId}-help`} className="text-[11px] leading-5 text-[#667b8e]">{t('Type the name in the field, then press Save unit.', 'اكتب الاسم في الحقل، ثم اضغط «حفظ الوحدة».')}</p>
       <FormNotice error={error} success={success} />
+      {success && !trackGuidedSetup && (
+        <Link
+          href={`/tenants/${encodeURIComponent(propertyId)}`}
+          className="inline-flex min-h-9 w-fit items-center gap-2 rounded-lg bg-[#3f7cff] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#2f68e0]"
+        >
+          {t('Next: add tenant and lease', 'التالي: إضافة المستأجر والعقد')}
+          <ArrowLeft size={13} className="ltr:rotate-180" />
+        </Link>
+      )}
     </form>
   );
 }
