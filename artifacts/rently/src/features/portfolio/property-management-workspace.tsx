@@ -415,6 +415,25 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
           ) : (
             <EmptyState title={t('This property could not be found.', 'لم يتم العثور على هذا العقار.')} action={<Link href="/properties" className="text-xs font-semibold text-[#315b91] underline">{t('Back to properties', 'العودة إلى العقارات')}</Link>} />
           )
+        ) : currentView === 'dashboard' && detailQueries.some((query) => query.isError) ? (
+          <div role="alert" className="border border-red-200 bg-white p-5 text-sm text-red-800">
+            <p className="font-semibold">
+              {t('Urgent notices may be incomplete because some property details could not be loaded.', 'قد تكون التنبيهات العاجلة غير مكتملة لتعذّر تحميل تفاصيل بعض العقارات.')}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                void Promise.all(
+                  detailQueries
+                    .filter((query) => query.isError)
+                    .map((query) => query.refetch()),
+                );
+              }}
+              className="mt-3 inline-flex min-h-10 items-center rounded-lg px-3 text-xs font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff]"
+            >
+              {t('Try again', 'حاول مجددًا')}
+            </button>
+          </div>
         ) : currentView === 'dashboard' ? (
           <Suspense fallback={<p role="status" className="border border-[#d1dbe4] bg-white p-5 text-sm text-[#718398]">{t('Loading dashboard…', 'جارٍ تحميل لوحة التحكم…')}</p>}>
             <OwnerDashboard

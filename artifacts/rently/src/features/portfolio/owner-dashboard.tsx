@@ -19,6 +19,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Link } from 'wouter';
 import type { Lease, Property, PropertyDetails, Unit } from '@/lib/rently-data';
 import { formatUsd, useI18n, useLocalizedFormats } from '@/lib/i18n';
 import { leaseStatusOnDate } from './lease-status';
@@ -43,6 +44,7 @@ type OwnerDashboardProps = {
 
 type Notice = {
   key: string;
+  leaseId: string;
   title: string;
   detail: string;
   kind: 'overdue' | 'ending';
@@ -171,6 +173,7 @@ export function OwnerDashboard({
       const total = overdue.reduce((sum, payment) => sum + payment.amount, 0);
       overdueNotices.push({
         key: `overdue-${lease.id}`,
+        leaseId: lease.id,
         title: t('Overdue rent', 'إيجار متأخر'),
         detail: `${tenantName} · ${location} · ${formatMoney(total)}`,
         kind: 'overdue',
@@ -186,6 +189,7 @@ export function OwnerDashboard({
     ) {
       endingNotices.push({
         key: `ending-${lease.id}`,
+        leaseId: lease.id,
         title: t('Lease ending soon', 'عقد ينتهي قريبًا'),
         detail: `${tenantName} · ${location} · ${formatDate(lease.end_date)}`,
         kind: 'ending',
@@ -306,7 +310,7 @@ export function OwnerDashboard({
                   <ul className="mt-4 divide-y divide-[#e6ebef]">
                     {notices.map((notice) => (
                       <li key={notice.key}>
-                        <button type="button" onClick={onOpenLeases} data-testid={`notice-${notice.key}`} className="flex w-full items-start gap-3 py-3 text-start transition hover:bg-[#fafcfd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3f7cff]">
+                        <Link href={`/leases/${encodeURIComponent(notice.leaseId)}`} data-testid={`notice-${notice.key}`} className="flex w-full items-start gap-3 py-3 text-start transition hover:bg-[#fafcfd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#3f7cff]">
                           <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center ${notice.kind === 'overdue' ? 'bg-[#fff1e8] text-[#a44d25]' : 'bg-[#fff7e6] text-[#a66b15]'}`}>
                             {notice.kind === 'overdue' ? <AlertTriangle size={15} /> : <CalendarClock size={15} />}
                           </span>
@@ -315,7 +319,7 @@ export function OwnerDashboard({
                             <span className="mt-1 block text-[10px] leading-4 text-[#8191a0]">{notice.detail}</span>
                           </span>
                           <ChevronRight size={14} className="mt-2 shrink-0 text-[#9aabb9] rtl:rotate-180" />
-                        </button>
+                        </Link>
                       </li>
                     ))}
                   </ul>
