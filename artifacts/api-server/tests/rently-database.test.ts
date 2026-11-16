@@ -50,6 +50,9 @@ async function database() {
   const tenantPortalServerOnly = await readFile(new URL("supabase/migrations/20261116000500_rently_tenant_portal_server_only.sql", root), "utf8");
   await db.exec(tenantPortalServerOnly);
   await db.exec(tenantPortalServerOnly);
+  const tenantPortalPhoneLength = await readFile(new URL("supabase/migrations/20261116000600_rently_tenant_portal_short_phone.sql", root), "utf8");
+  await db.exec(tenantPortalPhoneLength);
+  await db.exec(tenantPortalPhoneLength);
   await db.exec(`
     insert into public.rently_properties (id,owner_id,name) values ('${property}','${owner}','Test property');
     insert into public.rently_units (id,owner_id,property_id,unit_label) values ('${unit}','${owner}','${property}','A');
@@ -300,7 +303,7 @@ test("public tenant lookup matches both contacts and only exposes one owner's re
     const leaseId = "88888888-8888-4888-8888-888888888888";
     await db.query(
       `insert into public.rently_tenants(id,owner_id,full_name,email,phone)
-       values($1,$2,'Portal Tenant','Tenant@Example.com','+1 (555) 010-0001')`,
+      values($1,$2,'Portal Tenant','Tenant@Example.com','898989')`,
       [tenant, owner],
     );
     await db.query(
@@ -317,7 +320,7 @@ test("public tenant lookup matches both contacts and only exposes one owner's re
     const lookup = () => db.query<{
       tenant_name: string; rent_amount: string; due_date: string; payment_status: string;
     }>(`select tenant_name,rent_amount::text,due_date::text,payment_status
-        from public.lookup_rently_tenant_portal($1,$2)`, [" tenant@example.com ", "1 555-010-0001"]);
+        from public.lookup_rently_tenant_portal($1,$2)`, [" tenant@example.com ", "89-89-89"]);
     await db.exec("set role anon");
     await assert.rejects(lookup(), /permission/);
     await assert.rejects(db.query("select * from public.rently_tenants"), /permission/);
@@ -329,7 +332,7 @@ test("public tenant lookup matches both contacts and only exposes one owner's re
     assert.equal(overdue.rows[0].payment_status, "overdue");
     assert.equal((await db.query(
       "select * from public.lookup_rently_tenant_portal($1,$2)",
-      ["tenant@example.com", "1555010099"],
+      ["tenant@example.com", "898980"],
     )).rows.length, 0);
 
     await db.exec("reset role");
@@ -349,7 +352,7 @@ test("public tenant lookup matches both contacts and only exposes one owner's re
     await db.query("insert into public.rently_units(id,owner_id,property_id,unit_label) values($1,$2,$3,'B')", [unit2, other, property2]);
     await db.query(
       `insert into public.rently_tenants(id,owner_id,full_name,email,phone)
-       values($1,$2,'Other Tenant','tenant@example.com','15550100001')`,
+       values($1,$2,'Other Tenant','tenant@example.com','89-89-89')`,
       [tenant2, other],
     );
     await db.query(

@@ -13,6 +13,7 @@ const migrationNames = [
   "20261116000300_rently_setup_retries.sql",
   "20261116000400_rently_tenant_portal_lookup.sql",
   "20261116000500_rently_tenant_portal_server_only.sql",
+  "20261116000600_rently_tenant_portal_short_phone.sql",
 ];
 const skipIfUnconfigured = process.argv.includes("--skip-if-unconfigured");
 const connectionString = process.env.SUPABASE_DB_URL;

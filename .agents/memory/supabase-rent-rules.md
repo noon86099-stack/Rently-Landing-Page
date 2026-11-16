@@ -23,6 +23,12 @@ Public tenant rent lookup must stay behind the API server's private database con
 
 **How to apply:** keep the database function narrow, expose only the tenant rent summary through the API, and retain the server-side rate limit.
 
+Tenant Portal phone validation must allow the six-digit values already accepted in landlord-entered records.
+
+**Why:** a stricter minimum rejected a registered phone before the portal could attempt a match.
+
+**How to apply:** keep OpenAPI, API, and database minimum lengths aligned with existing records; normalize punctuation instead of assuming every stored number has seven or more digits.
+
 Monthly rent is due on the contractual day of the month. If that day does not exist in a month, use the month's final day. An unpaid installment becomes overdue the day after its due date, with no grace period.
 
 **Why:** the user selected this recurring due-date rule.

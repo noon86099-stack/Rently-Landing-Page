@@ -13,7 +13,7 @@ export interface RentlyTenantPortalLookupInput {
      */
   email: string;
   /**
-     * @minLength 7
+     * @minLength 6
      * @maxLength 40
      */
   phone: string;

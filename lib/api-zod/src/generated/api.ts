@@ -23,7 +23,7 @@ export const HealthCheckResponse = zod.object({
 export const lookupRentlyTenantPortalBodyEmailMin = 3;
 export const lookupRentlyTenantPortalBodyEmailMax = 320;
 
-export const lookupRentlyTenantPortalBodyPhoneMin = 7;
+export const lookupRentlyTenantPortalBodyPhoneMin = 6;
 export const lookupRentlyTenantPortalBodyPhoneMax = 40;
 
 

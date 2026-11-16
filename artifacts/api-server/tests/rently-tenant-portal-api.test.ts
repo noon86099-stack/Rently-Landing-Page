@@ -66,6 +66,13 @@ test("public tenant portal validates, returns a minimal summary, and limits atte
     });
     assert.deepEqual(Object.keys(result).sort(), ["dueDate", "paymentStatus", "rentAmount", "tenantName"]);
 
+    const shortRegisteredPhone = await post(
+      { email: "tenant@example.com", phone: "898989" },
+      "203.0.113.24",
+    );
+    assert.equal(shortRegisteredPhone.status, 200);
+    assert.deepEqual(lookupCalls[1], { email: "tenant@example.com", phone: "898989" });
+
     noMatch = true;
     const missing = await post(
       { email: "tenant@example.com", phone: "15550100002" },

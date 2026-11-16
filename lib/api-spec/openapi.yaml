@@ -257,7 +257,7 @@ components:
       required: [email, phone]
       properties:
         email: { type: string, format: email, minLength: 3, maxLength: 320 }
-        phone: { type: string, minLength: 7, maxLength: 40 }
+        phone: { type: string, minLength: 6, maxLength: 40 }
     RentlyTenantPortalLookup:
       type: object
       required: [tenantName, rentAmount, dueDate, paymentStatus]

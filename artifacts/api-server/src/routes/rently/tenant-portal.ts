@@ -63,7 +63,7 @@ export function createTenantPortalRouter(lookup: TenantPortalLookup): IRouter {
     const email = parsed.data.email.trim().toLowerCase();
     const phone = parsed.data.phone.trim();
     const digitCount = phone.replace(/\D/g, "").length;
-    if (digitCount < 7 || digitCount > 15) {
+    if (digitCount < 6 || digitCount > 15) {
       res.status(400).json({ error: "Enter a valid email address and phone number." });
       return;
     }
