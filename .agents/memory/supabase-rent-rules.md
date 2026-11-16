@@ -40,3 +40,9 @@ Monthly rent is due on the contractual day of the month. If that day does not ex
 **Why:** the user selected this recurring due-date rule.
 
 **How to apply:** preserve the original contract due day when generating each month so a short-month adjustment does not shift future installments.
+
+Rent payments must remain in test mode for now. After each verified successful payment, show the success to the relevant landlord in Rently.
+
+**Why:** the user specified that payment data is test-only and that the landlord should see each successful payment.
+
+**How to apply:** do not enable live charges; update and show payment success only after Stripe confirms the result.
