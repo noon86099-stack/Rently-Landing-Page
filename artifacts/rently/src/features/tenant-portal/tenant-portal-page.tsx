@@ -23,6 +23,7 @@ export function TenantPortalPage() {
   const [summary, setSummary] = useState<RentlyTenantPortalLookup | null>(null);
   const [error, setError] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [checkoutNotice] = useState<'success' | 'pending' | 'cancelled' | null>(() => {
     const payment = new URLSearchParams(window.location.search).get('payment');
     return payment === 'success' || payment === 'pending' || payment === 'cancelled' ? payment : null;
@@ -32,6 +33,7 @@ export function TenantPortalPage() {
     event.preventDefault();
     setSummary(null);
     setError('');
+    setCheckoutUrl(null);
     try {
       const result = await lookup.mutateAsync({ data: { email: email.trim(), phone: phone.trim() } });
       setSummary(result);
@@ -49,12 +51,22 @@ export function TenantPortalPage() {
 
   async function startCheckout() {
     setCheckoutError('');
+    setCheckoutUrl(null);
+    // Open synchronously from the click so browsers do not treat the external
+    // Stripe navigation as an unsolicited popup after the API request finishes.
+    const checkoutWindow = window.open('about:blank', '_blank');
+    if (checkoutWindow) checkoutWindow.opener = null;
     try {
       const result = await checkout.mutateAsync({
         data: { email: email.trim(), phone: phone.trim() },
       });
-      window.location.assign(result.checkoutUrl);
+      if (checkoutWindow && !checkoutWindow.closed) {
+        checkoutWindow.location.assign(result.checkoutUrl);
+      } else {
+        setCheckoutUrl(result.checkoutUrl);
+      }
     } catch (cause) {
+      checkoutWindow?.close();
       const status = httpStatus(cause);
       setCheckoutError(status === 404
         ? t('No outstanding rent payment matched those details.', 'لم نجد دفعة إيجار مستحقة بهذه البيانات.')
@@ -194,6 +206,16 @@ export function TenantPortalPage() {
                       ? t('Opening secure checkout…', 'جارٍ فتح صفحة الدفع الآمنة…')
                       : t('Pay Now', 'ادفع الآن')}
                   </button>
+                  {checkoutUrl && (
+                    <a
+                      href={checkoutUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-md border border-[#3f7cff] bg-white px-4 text-sm font-semibold text-[#315b91] transition-colors hover:bg-[#eef3ff]"
+                    >
+                      {t('Open secure Stripe checkout', 'فتح صفحة الدفع الآمنة من Stripe')}
+                    </a>
+                  )}
                 </>
               )}
             </section>
