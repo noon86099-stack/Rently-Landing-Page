@@ -26,3 +26,6 @@ VITE_SUPABASE_URL = "https://uxpkqqcgkrmwylbwucjz.supabase.co"
 
 [userenv.development]
 RENTLY_STRIPE_ACCOUNT_ID = "acct_1UcGzVDQ886gcL7w"
+
+[userenv.production]
+RENTLY_STRIPE_ACCOUNT_ID = "acct_1UcGzVDQ886gcL7w"

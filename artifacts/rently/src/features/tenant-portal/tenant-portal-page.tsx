@@ -17,7 +17,6 @@ function httpStatus(error: unknown): number | undefined {
 export function TenantPortalPage() {
   const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
-  const isPublishedDemo = import.meta.env.PROD;
   const lookup = useLookupRentlyTenantPortal();
   const checkout = useCreateRentlyTenantPortalCheckout();
   const [email, setEmail] = useState('');
@@ -26,9 +25,7 @@ export function TenantPortalPage() {
   const [error, setError] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-  const [simulationComplete, setSimulationComplete] = useState(false);
   const [checkoutNotice] = useState<'success' | 'pending' | 'cancelled' | null>(() => {
-    if (isPublishedDemo) return null;
     const payment = new URLSearchParams(window.location.search).get('payment');
     return payment === 'success' || payment === 'pending' || payment === 'cancelled' ? payment : null;
   });
@@ -38,7 +35,6 @@ export function TenantPortalPage() {
     setSummary(null);
     setError('');
     setCheckoutUrl(null);
-    setSimulationComplete(false);
     try {
       const result = await lookup.mutateAsync({ data: { email: email.trim(), phone: phone.trim() } });
       setSummary(result);
@@ -55,27 +51,17 @@ export function TenantPortalPage() {
   }
 
   async function startCheckout() {
-    if (isPublishedDemo) {
-      setSimulationComplete(true);
-      return;
-    }
     setCheckoutError('');
     setCheckoutUrl(null);
-    // Open synchronously from the click so browsers do not treat the external
-    // Stripe navigation as an unsolicited popup after the API request finishes.
-    const checkoutWindow = window.open('about:blank', '_blank');
-    if (checkoutWindow) checkoutWindow.opener = null;
     try {
       const result = await checkout.mutateAsync({
         data: { email: email.trim(), phone: phone.trim() },
       });
-      if (checkoutWindow && !checkoutWindow.closed) {
-        checkoutWindow.location.assign(result.checkoutUrl);
-      } else {
-        setCheckoutUrl(result.checkoutUrl);
-      }
+      setCheckoutUrl(result.checkoutUrl);
+      // Navigate in the current tab; mobile and in-app browsers often block
+      // newly opened tabs after an asynchronous checkout request.
+      window.location.assign(result.checkoutUrl);
     } catch (cause) {
-      checkoutWindow?.close();
       const status = httpStatus(cause);
       setCheckoutError(status === 404
         ? t('No outstanding rent payment matched those details.', 'لم نجد دفعة إيجار مستحقة بهذه البيانات.')
@@ -125,9 +111,9 @@ export function TenantPortalPage() {
               <p className="mt-2 text-sm leading-6 text-[#61768b]">{t('View your rent amount, due date, and payment status using the contact details registered with your landlord.', 'اعرض مبلغ الإيجار وتاريخ الاستحقاق وحالة الدفع باستخدام بيانات الاتصال المسجلة لدى المالك.')}</p>
             </div>
           </div>
-          {isPublishedDemo && (
+          {import.meta.env.PROD && (
             <p role="note" className="mt-4 rounded-lg border-s-2 border-amber-500 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
-              {t('Demo mode: payment is simulated only. No card or rent record is charged or changed.', 'وضع العرض: الدفع محاكاة فقط؛ لا تُستخدم بطاقة ولا يُخصم مبلغ أو يتغير سجل الإيجار.')}
+              {t('Stripe Test Mode only: no real money is charged. Successful test payments update the rent status shown to your landlord.', 'وضع Stripe الاختباري فقط: لا تُخصم أموال حقيقية. نجاح الدفع التجريبي يحدّث حالة الإيجار الظاهرة للمالك.')}
             </p>
           )}
           {checkoutNotice && (
@@ -223,11 +209,6 @@ export function TenantPortalPage() {
               </dl>
               {summary.paymentStatus !== 'paid' && (
                 <>
-                  {simulationComplete && (
-                    <p role="status" className="mt-4 rounded-lg border-s-2 border-amber-500 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
-                      {t('Simulation complete. No money was charged and the actual rent status was not changed.', 'اكتملت المحاكاة. لم يُخصم أي مبلغ ولم تتغير حالة الإيجار الفعلية.')}
-                    </p>
-                  )}
                   {checkoutError && (
                     <p role="alert" className="mt-4 rounded-lg border-s-2 border-red-500 bg-red-50 px-3 py-2 text-sm leading-6 text-red-800">
                       {checkoutError}
@@ -241,18 +222,14 @@ export function TenantPortalPage() {
                     aria-busy={checkout.isPending}
                     className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-[#3f7cff] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2f68e0] disabled:cursor-wait disabled:opacity-60"
                   >
-                    {isPublishedDemo
-                      ? t('Simulate payment', 'محاكاة الدفع')
-                      : checkout.isPending
-                        ? t('Opening secure checkout…', 'جارٍ فتح صفحة الدفع الآمنة…')
-                        : t('Pay Now', 'ادفع الآن')}
+                    {checkout.isPending
+                      ? t('Opening secure checkout…', 'جارٍ فتح صفحة الدفع الآمنة…')
+                      : t('Pay Now', 'ادفع الآن')}
                   </button>
-                  {!isPublishedDemo && checkoutUrl && (
+                  {checkoutUrl && (
                     <a
                       data-testid="link-tenant-stripe-checkout"
                       href={checkoutUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="mt-2 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-[#3f7cff] bg-white px-4 text-sm font-semibold text-[#315b91] transition-colors hover:bg-[#eef3ff]"
                     >
                       {t('Open secure Stripe checkout', 'فتح صفحة الدفع الآمنة من Stripe')}

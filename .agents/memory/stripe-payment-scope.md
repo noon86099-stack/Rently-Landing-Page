@@ -3,11 +3,11 @@ name: Stripe payment scope
 description: User-approved Stripe account and test-payment constraints for Rently.
 ---
 
-The user wants **test-only** rent checkout: no real money and no real cards. Use the Rently sandbox's server-side Stripe API key from Replit Secrets; reject non-test keys. Preview can use Stripe Test Mode, while the published portal remains a clearly labeled simulation that never charges or changes actual rent records. Do not enable live charges or Stripe Connect payouts.
+The user wants **Stripe Test Mode** for rent checkout on the published site: no real money or real cards. Published checkout should open Stripe Test Checkout, and successful test payments may update the linked Supabase rent record so the landlord sees it as paid. Show that this is a test payment. Do not enable live charges or Stripe Connect payouts.
 
-**Why:** The user clarified that they do not want real money or real cards, then approved publishing a no-charge simulation.
+**Why:** The user explicitly enabled Stripe Test Mode on the published portal after learning that successful test checkouts change the rent status in Supabase.
 
-**How to apply:** Bind the development API key to the Rently sandbox account, not the old LUNAPAWS or previous sandbox account. Keep the published payment action local-only and explicitly state that it does not change database payment status.
+**How to apply:** Bind development and production API runtimes to the confirmed Rently sandbox account, never the old LUNAPAWS or previous sandbox account. Accept only test-mode API keys and update rent status only after verifying a successful Stripe Checkout session.
 
 Connector credential responses can use either `secret` or `secret_key`; support both without logging either value. Keep `stripe-replit-sync` external to server bundling.
 
