@@ -214,7 +214,7 @@ export function RentlyHomepage() {
 
   useEffect(() => {
     if (!authReady) return;
-    if (user && location === '/') setLocation('/properties');
+    if (user && location === '/') setLocation('/dashboard');
     else if (!user && location !== '/') setLocation('/');
   }, [authReady, location, setLocation, user]);
 

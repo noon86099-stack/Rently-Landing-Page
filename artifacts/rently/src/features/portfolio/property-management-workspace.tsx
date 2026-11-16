@@ -243,7 +243,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
   const routeDetails = routeDetailsQuery?.data;
 
   useEffect(() => {
-    if (location === '/') setLocation('/properties');
+    if (location === '/') setLocation('/dashboard');
   }, [location, setLocation]);
 
   useEffect(() => {
