@@ -8,7 +8,7 @@ import { AddUnitForm } from '@/features/portfolio/add-unit-form';
 import { CreateLeaseForm } from '@/features/portfolio/create-lease-form';
 import { CreatePropertyForm, PROPERTY_TYPE_LABELS } from '@/features/portfolio/create-property-form';
 import { LeaseDetailsPage, type CreatedLeaseDetails, type LeaseDetailsData } from '@/features/portfolio/lease-details-page';
-import { LeaseRecord } from '@/features/portfolio/lease-record';
+import { LeaseRegister } from '@/features/portfolio/lease-register';
 import { useToday } from '@/features/portfolio/shared';
 import {
   loadOwnerProperties,
@@ -525,27 +525,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
             </section>
           </div>
         ) : currentView === 'leases' ? (
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold">{t('Lease records', 'سجلات العقود')}</h2>
-              <Link href="/tenants" className="inline-flex min-h-9 items-center gap-2 bg-[#102238] px-3 text-xs font-semibold text-white">
-                <Plus size={13} /> {t('Add tenant and lease', 'إضافة مستأجر وعقد')}
-              </Link>
-            </div>
-            {leaseEntries.length === 0 ? (
-              <EmptyState title={t('No leases yet.', 'لا توجد عقود بعد.')} action={<Link href="/tenants" className="text-xs font-semibold text-[#315b91] underline">{t('Create a tenant and lease', 'إنشاء مستأجر وعقد')}</Link>} />
-            ) : (
-              leaseEntries.map((entry) => (
-                <div key={entry.lease.id} className="border border-[#d1dbe4] bg-white p-3 sm:p-4">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <p dir="auto" className="text-sm font-semibold">{entry.property.name} · {entry.unit.unit_label}</p>
-                    <Link href={`/leases/${encodeURIComponent(entry.lease.id)}`} className="text-xs font-semibold text-[#315b91] underline">{t('Lease details', 'تفاصيل العقد')}</Link>
-                  </div>
-                  <LeaseRecord lease={entry.lease} ctx={{ token, userId: user.id, propertyId: entry.property.id, today }} />
-                </div>
-              ))
-            )}
-          </section>
+          <LeaseRegister entries={leaseEntries} token={token} userId={user.id} today={today} />
         ) : null}
       </div>
     </main>
