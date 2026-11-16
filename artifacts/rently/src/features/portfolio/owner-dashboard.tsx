@@ -61,17 +61,6 @@ function formatShortMonth(date: Date, locale: string) {
   return new Intl.DateTimeFormat(locale, { month: 'short' }).format(date);
 }
 
-function BrandMark() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M11 4.75h19.4L43.25 17.6v19.15L30.4 43.25H11L4.75 37V11L11 4.75Z" stroke="#102238" strokeWidth="2.5" />
-      <path d="M15.5 33V15h10.1c4.15 0 6.4 2.1 6.4 5.55 0 3.3-2.25 5.35-6.4 5.35h-5.45" stroke="#3f7cff" strokeWidth="3.4" strokeLinecap="square" strokeLinejoin="miter" />
-      <path d="m24.4 25.8 8.1 8.1" stroke="#102238" strokeWidth="2.7" strokeLinecap="square" />
-      <path d="M31 5v8h8" stroke="#3f7cff" strokeWidth="2.5" />
-    </svg>
-  );
-}
-
 function Metric({
   label,
   value,
@@ -290,7 +279,7 @@ export function OwnerDashboard({
                           contentStyle={{ border: '1px solid #d4dee7', borderRadius: 0, fontSize: 11 }}
                         />
                         <Bar dataKey="scheduled" name="scheduled" fill="#b9c8d8" radius={[2, 2, 0, 0]} maxBarSize={24} />
-                        <Bar dataKey="collected" name="collected" fill="#3f7cff" radius={[2, 2, 0, 0]} maxBarSize={24} />
+                        <Bar dataKey="collected" name="collected" fill="#315fdb" radius={[2, 2, 0, 0]} maxBarSize={24} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

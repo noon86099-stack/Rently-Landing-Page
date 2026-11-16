@@ -21,6 +21,7 @@ import {
 } from '@/lib/rently-data';
 import { supabaseConfigured } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
+import { RentlyWordmark } from '@/components/rently-brand';
 
 type Props = {
   user: User;
@@ -37,17 +38,6 @@ type LeaseEntry = {
 const OwnerDashboard = lazy(() =>
   import('@/features/portfolio/owner-dashboard').then((module) => ({ default: module.OwnerDashboard })),
 );
-
-function BrandMark() {
-  return (
-    <svg width="34" height="34" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M11 4.75h19.4L43.25 17.6v19.15L30.4 43.25H11L4.75 37V11L11 4.75Z" stroke="#102238" strokeWidth="2.5" />
-      <path d="M15.5 33V15h10.1c4.15 0 6.4 2.1 6.4 5.55 0 3.3-2.25 5.35-6.4 5.35h-5.45" stroke="#3f7cff" strokeWidth="3.4" strokeLinecap="square" strokeLinejoin="miter" />
-      <path d="m24.4 25.8 8.1 8.1" stroke="#102238" strokeWidth="2.7" strokeLinecap="square" />
-      <path d="M31 5v8h8" stroke="#3f7cff" strokeWidth="2.5" />
-    </svg>
-  );
-}
 
 function EmptyState({ title, action }: { title: string; action?: ReactNode }) {
   return (
@@ -334,8 +324,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
       <header className="sticky top-0 z-20 border-b border-[#d1dbe4] bg-[#f8fafb]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Link href="/properties" className="flex items-center gap-2.5" aria-label={t('Rently dashboard', 'لوحة تحكم Rently')}>
-            <BrandMark />
-            <span className="text-lg font-bold tracking-[-.07em]">rently<span className="text-[#3f7cff]">/</span></span>
+            <RentlyWordmark size={34} />
           </Link>
           <nav aria-label={t('Property management', 'إدارة العقارات')} className="order-3 flex w-full gap-2 overflow-x-auto pb-0.5 sm:order-2 sm:w-auto">
             {tabs.map(({ href, label, icon: Icon, active }) => (

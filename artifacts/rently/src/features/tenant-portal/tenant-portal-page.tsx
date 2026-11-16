@@ -6,6 +6,7 @@ import {
   type RentlyTenantPortalLookup,
 } from '@workspace/api-client-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { RentlyWordmark } from '@/components/rently-brand';
 import { useI18n, useLocalizedFormats } from '@/lib/i18n';
 
 function httpStatus(error: unknown): number | undefined {
@@ -99,10 +100,7 @@ export function TenantPortalPage() {
       <header className="border-b border-[#d1dbe4] bg-[#f8fafb]">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <a href="/" className="flex items-center gap-2 font-bold tracking-[-.05em]" aria-label="Rently">
-            <span className="grid h-9 w-9 place-items-center border-2 border-[#102238] text-lg leading-none">
-              <span className="text-[#3f7cff]">R</span>
-            </span>
-            <span className="text-lg">rently<span className="text-[#3f7cff]">/</span></span>
+            <RentlyWordmark size={34} />
           </a>
           <div className="flex items-center gap-2">
             <a

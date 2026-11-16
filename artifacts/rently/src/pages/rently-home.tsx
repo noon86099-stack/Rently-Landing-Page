@@ -15,26 +15,13 @@ import { LeaseRecord } from '@/features/portfolio/lease-record';
 import { GuidedSetup, GuidedSetupDisclosure } from '@/features/portfolio/guided-setup';
 import { LeaseDetailsPage, type CreatedLeaseDetails } from '@/features/portfolio/lease-details-page';
 import { Panel, useToday } from '@/features/portfolio/shared';
-
-function RentlyMark({ inverse = false, size = 40 }: { inverse?: boolean; size?: number }) {
-  const stroke = inverse ? '#f0f5f8' : '#102238';
-  const bright = inverse ? '#b5f06b' : '#3f7cff';
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M11 4.75h19.4L43.25 17.6v19.15L30.4 43.25H11L4.75 37V11L11 4.75Z" stroke={stroke} strokeWidth="2.5" />
-      <path d="M15.5 33V15h10.1c4.15 0 6.4 2.1 6.4 5.55 0 3.3-2.25 5.35-6.4 5.35h-5.45" stroke={bright} strokeWidth="3.4" strokeLinecap="square" strokeLinejoin="miter" />
-      <path d="m24.4 25.8 8.1 8.1" stroke={stroke} strokeWidth="2.7" strokeLinecap="square" />
-      <path d="M31 5v8h8" stroke={bright} strokeWidth="2.5" />
-    </svg>
-  );
-}
+import { RentlyMark, RentlyWordmark } from '@/components/rently-brand';
 
 function Wordmark({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
   return (
     <a href="#top" dir="ltr" className="inline-flex items-center gap-2.5" aria-label={t('Rently home', 'الصفحة الرئيسية لـ Rently')}>
-      <RentlyMark size={compact ? 34 : 40} />
-      <span className="text-[20px] font-bold tracking-[-.07em] text-[#102238]">rently<span className="text-[#3f7cff]">/</span></span>
+      <RentlyWordmark size={compact ? 34 : 40} />
     </a>
   );
 }
@@ -290,7 +277,13 @@ export function RentlyHomepage() {
           <a href="#owners" className="transition-colors hover:text-[#102238]">{t('For owners', 'للملاك')}</a>
         </nav>}
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-          <Link href="/tenant-portal" className="shrink-0 border border-[#cbd7e1] bg-white px-2.5 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.05em] text-[#315b91] sm:px-3">
+          <Link
+            href="/tenant-portal"
+            data-testid="link-tenant-portal"
+            aria-label={t('Open Tenant Portal', 'افتح بوابة المستأجر')}
+            className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-md bg-[#3f7cff] px-2.5 font-mono text-[8px] font-semibold uppercase tracking-[.03em] text-white transition-colors hover:bg-[#2f68e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] sm:min-h-10 sm:gap-2 sm:px-3 sm:text-[10px] sm:tracking-[.05em]"
+          >
+            <UsersRound size={13} aria-hidden="true" />
             {t('Tenant Portal', 'بوابة المستأجر')}
           </Link>
           <LanguageSwitcher />
