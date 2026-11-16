@@ -111,11 +111,6 @@ export function TenantPortalPage() {
               <p className="mt-2 text-sm leading-6 text-[#61768b]">{t('View your rent amount, due date, and payment status using the contact details registered with your landlord.', 'اعرض مبلغ الإيجار وتاريخ الاستحقاق وحالة الدفع باستخدام بيانات الاتصال المسجلة لدى المالك.')}</p>
             </div>
           </div>
-          {import.meta.env.PROD && (
-            <p role="note" className="mt-4 rounded-lg border-s-2 border-amber-500 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
-              {t('Stripe Test Mode only: no real money is charged. Successful test payments update the rent status shown to your landlord.', 'وضع Stripe الاختباري فقط: لا تُخصم أموال حقيقية. نجاح الدفع التجريبي يحدّث حالة الإيجار الظاهرة للمالك.')}
-            </p>
-          )}
           {checkoutNotice && (
             <p
               role="status"
