@@ -23,4 +23,6 @@ timeoutMs = 120000
 
 [userenv.shared]
 VITE_SUPABASE_URL = "https://uxpkqqcgkrmwylbwucjz.supabase.co"
+
+[userenv.development]
 RENTLY_STRIPE_ACCOUNT_ID = "acct_1UcP35AGKu2nlDNT"

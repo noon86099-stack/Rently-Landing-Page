@@ -3,11 +3,11 @@ name: Stripe payment scope
 description: User-approved Stripe account and test-payment constraints for Rently.
 ---
 
-The user wants **test-only** rent checkout: no real money and no real cards. Keep landlord payment status visible in Rently after a successful test checkout. Do not enable live charges or Stripe Connect payouts.
+The user wants **test-only** rent checkout: no real money and no real cards. Stripe Test Mode remains available in Preview; the published portal should use a clearly labeled simulation that never charges or changes actual rent records. Do not enable live charges or Stripe Connect payouts.
 
-**Why:** The user clarified that they do not want real money or real cards, overriding their earlier selection of live payments to each landlord.
+**Why:** The user clarified that they do not want real money or real cards, then approved publishing a no-charge simulation.
 
-**How to apply:** Use Stripe Test Mode and test card numbers only. Keep the test checkout in Preview unless the user explicitly approves a supported public test/demo approach.
+**How to apply:** Keep test Stripe credentials scoped to development. In published builds, keep payment actions local-only and explicitly state that the simulation does not change database payment status.
 
 Connector credential responses can use either `secret` or `secret_key`; support both without logging either value. Keep `stripe-replit-sync` external to server bundling.
 
