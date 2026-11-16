@@ -1,4 +1,10 @@
 import type Stripe from "stripe";
+import { createHash } from "node:crypto";
+import {
+  getRentlyCheckoutUrls,
+  getRentlyPublicBaseUrl,
+  hasCurrentRentlyCheckoutUrls,
+} from "./rently-checkout-urls";
 import {
   clearExpiredRentlyStripeCheckoutSession,
   findRentlyTenantPortalCheckoutPayment,
@@ -16,9 +22,7 @@ export class RentlyStripeCheckoutError extends Error {
 }
 
 function getRentlyBaseUrl() {
-  const domain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-  if (!domain) throw new RentlyStripeCheckoutError("unavailable");
-  return (domain.startsWith("http") ? domain : `https://${domain}`).replace(/\/+$/, "");
+  return getRentlyPublicBaseUrl();
 }
 
 function amountInCents(amount: number) {
@@ -76,6 +80,7 @@ export async function createRentlyTenantCheckout(email: string, phone: string): 
     if (payment.paidAt) throw new RentlyStripeCheckoutError("already_paid");
 
     const stripe = await getUncachableStripeClient();
+    const checkoutUrls = getRentlyCheckoutUrls();
     if (payment.checkoutSessionId) {
       const previous = await stripe.checkout.sessions.retrieve(payment.checkoutSessionId);
       if (previous.payment_status === "paid") {
@@ -84,7 +89,13 @@ export async function createRentlyTenantCheckout(email: string, phone: string): 
         }
         throw new RentlyStripeCheckoutError("already_paid");
       }
-      if (previous.status === "open" && previous.url) return previous.url;
+      if (previous.status === "open" && previous.url) {
+        if (hasCurrentRentlyCheckoutUrls(previous, checkoutUrls)) return previous.url;
+        // Stripe cannot change an existing session's return URLs. Replace only
+        // unpaid, open sessions that would return the tenant to an old origin.
+        await stripe.checkout.sessions.expire(previous.id);
+        previous.status = "expired";
+      }
       if (previous.status !== "expired") {
         throw new RentlyStripeCheckoutError("unavailable");
       }
@@ -93,7 +104,10 @@ export async function createRentlyTenantCheckout(email: string, phone: string): 
 
     const cents = amountInCents(payment.amount);
     const price = await getRentPrice(stripe, cents);
-    const baseUrl = getRentlyBaseUrl();
+    const checkoutRevision = createHash("sha256")
+      .update(JSON.stringify([checkoutUrls, payment.checkoutSessionId]))
+      .digest("hex")
+      .slice(0, 16);
     const metadata = {
       rently_payment_id: payment.id,
       rently_owner_id: payment.ownerId,
@@ -106,10 +120,9 @@ export async function createRentlyTenantCheckout(email: string, phone: string): 
         client_reference_id: payment.id,
         metadata,
         payment_intent_data: { metadata },
-        success_url: `${baseUrl}/api/rently/tenant-portal/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/tenant-portal?payment=cancelled`,
+        ...checkoutUrls,
       },
-      { idempotencyKey: `rently-checkout-${payment.id}-${new Date().toISOString().slice(0, 10)}` },
+      { idempotencyKey: `rently-checkout-${payment.id}-${new Date().toISOString().slice(0, 10)}-${checkoutRevision}` },
     );
 
     if (!session.url) throw new RentlyStripeCheckoutError("unavailable");
