@@ -17,6 +17,12 @@ Keep Rently registration simple, without email messages or confirmation.
 
 **How to apply:** retain password-protected accounts and owner isolation, but do not require email verification to complete signup. Configure this in Supabase Auth rather than bypassing authentication or exposing administrator credentials.
 
+Public tenant rent lookup must stay behind the API server's private database connection. Do not grant its lookup function to `public`, `anon`, or `authenticated`, and do not call it directly from browser code.
+
+**Why:** a public RPC can be called directly with the publishable key and bypass API-level throttling while returning private rent information.
+
+**How to apply:** keep the database function narrow, expose only the tenant rent summary through the API, and retain the server-side rate limit.
+
 Monthly rent is due on the contractual day of the month. If that day does not exist in a month, use the month's final day. An unpaid installment becomes overdue the day after its due date, with no grace period.
 
 **Why:** the user selected this recurring due-date rule.

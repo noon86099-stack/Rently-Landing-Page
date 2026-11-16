@@ -26,6 +26,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /rently/tenant-portal/lookup:
+    post:
+      operationId: lookupRentlyTenantPortal
+      tags: [rently]
+      summary: Match tenant contact details and return one rent status
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RentlyTenantPortalLookupInput"
+      responses:
+        "200":
+          description: Tenant rent summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RentlyTenantPortalLookup"
+        "400":
+          description: Invalid email or phone
+        "404":
+          description: No matching tenant or rent record
+        "429":
+          description: Too many lookup attempts
+        "503":
+          description: Tenant lookup is not configured
   /rently/properties:
     post:
       operationId: createRentlyProperty
@@ -225,6 +252,22 @@ components:
           type: string
       required:
         - status
+    RentlyTenantPortalLookupInput:
+      type: object
+      required: [email, phone]
+      properties:
+        email: { type: string, format: email, minLength: 3, maxLength: 320 }
+        phone: { type: string, minLength: 7, maxLength: 40 }
+    RentlyTenantPortalLookup:
+      type: object
+      required: [tenantName, rentAmount, dueDate, paymentStatus]
+      properties:
+        tenantName: { type: string, minLength: 1 }
+        rentAmount: { type: number, exclusiveMinimum: 0 }
+        dueDate: { type: string, format: date }
+        paymentStatus:
+          type: string
+          enum: [paid, pending, overdue]
     RentlyProperty:
       type: object
       required: [id, name, streetAddress, city, region, propertyType]

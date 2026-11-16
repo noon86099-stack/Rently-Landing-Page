@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { RentlyHomepage } from '@/pages/rently-home';
+import { TenantPortalPage } from '@/features/tenant-portal/tenant-portal-page';
 import { I18nProvider } from '@/lib/i18n';
 import {
   useLocation,
@@ -19,10 +20,12 @@ function Home() {
 }
 function Router() {
   const [location] = useLocation();
-  const isRentlyRoute = location === '/' || /^\/(?:dashboard|properties(?:\/[^/]+)?|tenants(?:\/[^/]+)?|leases(?:\/[^/]+)?)\/?$/.test(location);
+  const isRentlyRoute = location === '/' || /^\/(?:tenant-portal|dashboard|properties(?:\/[^/]+)?|tenants(?:\/[^/]+)?|leases(?:\/[^/]+)?)\/?$/.test(location);
   return (
     <RoutedErrorBoundary>
-      {isRentlyRoute ? <Home /> : <NotFound />}
+      {isRentlyRoute
+        ? location === '/tenant-portal' ? <TenantPortalPage /> : <Home />
+        : <NotFound />}
     </RoutedErrorBoundary>
   );
 }

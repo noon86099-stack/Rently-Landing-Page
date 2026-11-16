@@ -44,6 +44,12 @@ async function database() {
   const setup = await readFile(new URL("supabase/migrations/20261116000300_rently_setup_retries.sql", root), "utf8");
   await db.exec(setup);
   await db.exec(setup);
+  const tenantPortal = await readFile(new URL("supabase/migrations/20261116000400_rently_tenant_portal_lookup.sql", root), "utf8");
+  await db.exec(tenantPortal);
+  await db.exec(tenantPortal);
+  const tenantPortalServerOnly = await readFile(new URL("supabase/migrations/20261116000500_rently_tenant_portal_server_only.sql", root), "utf8");
+  await db.exec(tenantPortalServerOnly);
+  await db.exec(tenantPortalServerOnly);
   await db.exec(`
     insert into public.rently_properties (id,owner_id,name) values ('${property}','${owner}','Test property');
     insert into public.rently_units (id,owner_id,property_id,unit_label) values ('${unit}','${owner}','${property}','A');
@@ -284,5 +290,78 @@ test("an audit failure rolls back the correction rather than losing evidence", a
     await assert.rejects(db.query("select public.correct_rently_payment($1,'2026-02-02','2026-02-01','Receipt')", [id]), /audit write failure/);
     assert.equal((await db.query("select paid_at::text as date from public.rently_payments where id=$1", [id])).rows[0].date, "2026-02-01");
     assert.equal((await db.query("select * from public.rently_payment_corrections")).rows.length, 0);
+  } finally { await db.close(); }
+});
+
+test("public tenant lookup matches both contacts and only exposes one owner's rent summary", async () => {
+  const db = await database();
+  try {
+    const tenant = "77777777-7777-4777-8777-777777777777";
+    const leaseId = "88888888-8888-4888-8888-888888888888";
+    await db.query(
+      `insert into public.rently_tenants(id,owner_id,full_name,email,phone)
+       values($1,$2,'Portal Tenant','Tenant@Example.com','+1 (555) 010-0001')`,
+      [tenant, owner],
+    );
+    await db.query(
+      `insert into public.rently_leases(id,owner_id,unit_id,tenant_id,start_date,end_date,status,monthly_rent,due_day)
+       values($1,$2,$3,$4,current_date-30,current_date+90,'active',900,1)`,
+      [leaseId, owner, unit, tenant],
+    );
+    await db.query(
+      `insert into public.rently_payments(owner_id,lease_id,due_date,amount)
+       values($1,$2,current_date-1,900)`,
+      [owner, leaseId],
+    );
+
+    const lookup = () => db.query<{
+      tenant_name: string; rent_amount: string; due_date: string; payment_status: string;
+    }>(`select tenant_name,rent_amount::text,due_date::text,payment_status
+        from public.lookup_rently_tenant_portal($1,$2)`, [" tenant@example.com ", "1 555-010-0001"]);
+    await db.exec("set role anon");
+    await assert.rejects(lookup(), /permission/);
+    await assert.rejects(db.query("select * from public.rently_tenants"), /permission/);
+    await db.exec("reset role");
+    const overdue = await lookup();
+    assert.equal(overdue.rows.length, 1);
+    assert.equal(overdue.rows[0].tenant_name, "Portal Tenant");
+    assert.equal(overdue.rows[0].rent_amount, "900.00");
+    assert.equal(overdue.rows[0].payment_status, "overdue");
+    assert.equal((await db.query(
+      "select * from public.lookup_rently_tenant_portal($1,$2)",
+      ["tenant@example.com", "1555010099"],
+    )).rows.length, 0);
+
+    await db.exec("reset role");
+    await db.query("update public.rently_payments set paid_at=current_date where lease_id=$1", [leaseId]);
+    assert.equal((await lookup()).rows[0].payment_status, "paid");
+
+    await db.exec("reset role");
+    await db.query(
+      "update public.rently_payments set paid_at=null,due_date=current_date+1 where lease_id=$1",
+      [leaseId],
+    );
+    const property2 = "55555555-5555-4555-8555-555555555555";
+    const unit2 = "66666666-6666-4666-8666-666666666666";
+    const tenant2 = "99999999-9999-4999-8999-999999999999";
+    const lease2 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    await db.query("insert into public.rently_properties(id,owner_id,name) values($1,$2,'Other')", [property2, other]);
+    await db.query("insert into public.rently_units(id,owner_id,property_id,unit_label) values($1,$2,$3,'B')", [unit2, other, property2]);
+    await db.query(
+      `insert into public.rently_tenants(id,owner_id,full_name,email,phone)
+       values($1,$2,'Other Tenant','tenant@example.com','15550100001')`,
+      [tenant2, other],
+    );
+    await db.query(
+      `insert into public.rently_leases(id,owner_id,unit_id,tenant_id,start_date,end_date,status,monthly_rent,due_day)
+       values($1,$2,$3,$4,current_date-30,current_date+90,'active',1200,1)`,
+      [lease2, other, unit2, tenant2],
+    );
+    await db.query(
+      `insert into public.rently_payments(owner_id,lease_id,due_date,amount)
+       values($1,$2,current_date+1,1200)`,
+      [other, lease2],
+    );
+    assert.equal((await lookup()).rows.length, 0, "ambiguous matches across owners return no private record");
   } finally { await db.close(); }
 });

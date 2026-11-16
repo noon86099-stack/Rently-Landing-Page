@@ -17,5 +17,8 @@ export * from './rentlyPaymentInput';
 export * from './rentlyProperty';
 export * from './rentlyPropertyInput';
 export * from './rentlyTenant';
+export * from './rentlyTenantPortalLookup';
+export * from './rentlyTenantPortalLookupInput';
+export * from './rentlyTenantPortalLookupPaymentStatus';
 export * from './rentlyUnit';
 export * from './rentlyUnitInput';

@@ -18,6 +18,35 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Match tenant contact details and return one rent status
+ */
+export const lookupRentlyTenantPortalBodyEmailMin = 3;
+export const lookupRentlyTenantPortalBodyEmailMax = 320;
+
+export const lookupRentlyTenantPortalBodyPhoneMin = 7;
+export const lookupRentlyTenantPortalBodyPhoneMax = 40;
+
+
+
+export const LookupRentlyTenantPortalBody = zod.object({
+  "email": zod.string().email().min(lookupRentlyTenantPortalBodyEmailMin).max(lookupRentlyTenantPortalBodyEmailMax),
+  "phone": zod.string().min(lookupRentlyTenantPortalBodyPhoneMin).max(lookupRentlyTenantPortalBodyPhoneMax)
+})
+
+
+export const lookupRentlyTenantPortalResponseRentAmountExclusiveMin = 0;
+
+
+
+export const LookupRentlyTenantPortalResponse = zod.object({
+  "tenantName": zod.string().min(1),
+  "rentAmount": zod.number().gt(lookupRentlyTenantPortalResponseRentAmountExclusiveMin),
+  "dueDate": zod.string().date(),
+  "paymentStatus": zod.enum(['paid', 'pending', 'overdue'])
+})
+
+
+/**
  * @summary Create an owner property
  */
 export const createRentlyPropertyBodyNameMax = 160;

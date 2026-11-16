@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowRight, CalendarDays, Check, FileText, Home, LoaderCircle, MapPin, UsersRound } from 'lucide-react';
 import type { Session, User } from '@supabase/supabase-js';
 import type { RentlyLease } from '@workspace/api-client-react';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { loadOwnerProperties, loadPropertyDetails, propertyLocation, type Property } from '@/lib/rently-data';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { CreatePropertyForm, PROPERTY_TYPE_LABELS } from '@/features/portfolio/create-property-form';
@@ -290,6 +290,9 @@ export function RentlyHomepage() {
           <a href="#owners" className="transition-colors hover:text-[#102238]">{t('For owners', 'للملاك')}</a>
         </nav>}
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
+          <Link href="/tenant-portal" className="shrink-0 border border-[#cbd7e1] bg-white px-2.5 py-2 font-mono text-[8px] font-semibold uppercase tracking-[.05em] text-[#315b91] sm:px-3">
+            {t('Tenant Portal', 'بوابة المستأجر')}
+          </Link>
           <LanguageSwitcher />
           {user ? (
             <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">

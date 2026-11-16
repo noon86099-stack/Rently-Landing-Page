@@ -121,6 +121,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   await cp(path.resolve(artifactDir, "assets"), path.resolve(distDir, "assets"), {
     recursive: true,
   });
+  await cp(
+    path.resolve(artifactDir, "../../attached_assets/prod-ca-2021_1794772789110.crt"),
+    path.resolve(distDir, "assets/prod-ca-2021_1794772789110.crt"),
+  );
 }
 
 buildAll().catch((err) => {

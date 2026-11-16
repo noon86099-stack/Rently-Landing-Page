@@ -9,6 +9,37 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface RentlyTenantPortalLookupInput {
+  /**
+     * @minLength 3
+     * @maxLength 320
+     */
+  email: string;
+  /**
+     * @minLength 7
+     * @maxLength 40
+     */
+  phone: string;
+}
+
+export type RentlyTenantPortalLookupPaymentStatus = typeof RentlyTenantPortalLookupPaymentStatus[keyof typeof RentlyTenantPortalLookupPaymentStatus];
+
+
+export const RentlyTenantPortalLookupPaymentStatus = {
+  paid: 'paid',
+  pending: 'pending',
+  overdue: 'overdue',
+} as const;
+
+export interface RentlyTenantPortalLookup {
+  /** @minLength 1 */
+  tenantName: string;
+  /** @exclusiveMinimum 0 */
+  rentAmount: number;
+  dueDate: string;
+  paymentStatus: RentlyTenantPortalLookupPaymentStatus;
+}
+
 export interface RentlyProperty {
   id: string;
   name: string;
