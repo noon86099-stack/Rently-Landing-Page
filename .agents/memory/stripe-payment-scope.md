@@ -20,3 +20,9 @@ Use an explicitly configured, verified public origin for Stripe success, cancell
 **Why:** A completed mobile checkout returned the tenant to Replit's private-preview login instead of the public portal; existing Stripe sessions retain the return URLs they were created with.
 
 **How to apply:** Obtain the current published origin through deployment metadata before configuring it. Keep payment verification server-side, and replace only unpaid, open sessions with stale return URLs; never require tenants to sign into Replit.
+
+Process Rently rent-payment confirmations through a dedicated signed `checkout.session.completed` webhook, separate from `stripe-replit-sync`. Reuse the existing server-side session and idempotent database validation; accept test mode only.
+
+**Why:** The generic Stripe sync webhook does not update Rently's Supabase rent records, while a tenant's browser redirect is not a reliable payment signal.
+
+**How to apply:** Verify the raw body using `STRIPE_WEBHOOK_SECRET`, acknowledge unrelated or non-paid events without changing rent, and let transient server failures return a retryable response.
