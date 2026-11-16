@@ -281,9 +281,9 @@ export function RentlyHomepage() {
             href="/tenant-portal"
             data-testid="link-tenant-portal"
             aria-label={t('Open Tenant Portal', 'افتح بوابة المستأجر')}
-            className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-md bg-[#3f7cff] px-2.5 font-mono text-[8px] font-semibold uppercase tracking-[.03em] text-white transition-colors hover:bg-[#2f68e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] sm:min-h-10 sm:gap-2 sm:px-3 sm:text-[10px] sm:tracking-[.05em]"
+            className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-lg bg-[#3f7cff] px-3 font-mono text-[10px] font-semibold uppercase tracking-[.03em] text-white transition-colors hover:bg-[#2f68e0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3f7cff] sm:px-4 sm:text-xs sm:tracking-[.05em]"
           >
-            <UsersRound size={13} aria-hidden="true" />
+            <UsersRound size={16} aria-hidden="true" />
             {t('Tenant Portal', 'بوابة المستأجر')}
           </Link>
           <LanguageSwitcher />
