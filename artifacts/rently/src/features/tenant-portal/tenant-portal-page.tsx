@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Home } from 'lucide-react';
 import {
   useLookupRentlyTenantPortal,
   type RentlyTenantPortalLookup,
@@ -57,7 +58,16 @@ export function TenantPortalPage() {
             </span>
             <span className="text-lg">rently<span className="text-[#3f7cff]">/</span></span>
           </a>
-          <LanguageSwitcher />
+          <div className="flex items-center gap-2">
+            <a
+              href="/"
+              className="inline-flex min-h-9 items-center gap-1.5 border border-[#cbd7e1] bg-white px-2.5 text-xs font-semibold text-[#315b91] transition-colors hover:bg-[#eef3f7] sm:px-3"
+            >
+              <Home size={14} aria-hidden="true" />
+              {t('Back to home', 'العودة للرئيسية')}
+            </a>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
