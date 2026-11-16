@@ -4,6 +4,7 @@ import { Download, LoaderCircle } from 'lucide-react';
 import { getDownloadRentlyLeasePdfQueryKey, useDownloadRentlyLeasePdf, useRecordRentlyPayment } from '@workspace/api-client-react';
 import type { Lease, Payment } from '@/lib/rently-data';
 import { LeaseDocumentControl } from '@/features/leases/lease-document-control';
+import { leaseStatusOnDate } from './lease-status';
 import { PaymentCorrection } from './payment-correction';
 import { message, useI18n, useLocalizedFormats, type UiMessage } from '@/lib/i18n';
 import { FormNotice, authRequest, errorMessage, ghostBtn, invalidatePortfolio } from './shared';
@@ -102,6 +103,7 @@ export function LeaseRecord({ lease, ctx }: { lease: Lease; ctx: Ctx }) {
   const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
   const statusLabel: Record<string, string> = { active: t('Active', 'نشط'), ended: t('Ended', 'منتهٍ'), upcoming: t('Upcoming', 'قادم') };
+  const effectiveStatus = leaseStatusOnDate(lease, ctx.today);
   const dt = 'font-mono text-[7px] uppercase tracking-[.08em] text-[#8192a3]';
 
   return (
@@ -109,7 +111,7 @@ export function LeaseRecord({ lease, ctx }: { lease: Lease; ctx: Ctx }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p data-testid={`text-tenant-${lease.id}`} dir="auto" className="truncate text-[11px] font-semibold">{tenant?.full_name ?? t('Tenant unavailable', 'المستأجر غير متاح')}</p>
-          <p className="mt-0.5 font-mono text-[8px] text-[#778a9c]"><bdi dir={direction}>{formatDate(lease.start_date)} / {formatDate(lease.end_date)}</bdi> <span className="uppercase text-[#47617a]">[{statusLabel[lease.status] ?? lease.status}]</span></p>
+          <p className="mt-0.5 font-mono text-[8px] text-[#778a9c]"><bdi dir={direction}>{formatDate(lease.start_date)} / {formatDate(lease.end_date)}</bdi> <span className="uppercase text-[#47617a]">[{statusLabel[effectiveStatus] ?? effectiveStatus}]</span></p>
         </div>
         {hasTerms && <LeasePdfDownloadButton leaseId={lease.id} token={ctx.token} />}
       </div>

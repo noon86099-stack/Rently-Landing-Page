@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronRight, FileText, Home, LoaderCircle, Plus, UsersRound } from 'lucide-react';
+import { Check, ChevronRight, FileText, Home, LayoutDashboard, LoaderCircle, Plus, UsersRound } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { Link, useLocation } from 'wouter';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -33,6 +33,10 @@ type LeaseEntry = {
   unit: Unit;
   lease: Lease;
 };
+
+const OwnerDashboard = lazy(() =>
+  import('@/features/portfolio/owner-dashboard').then((module) => ({ default: module.OwnerDashboard })),
+);
 
 function BrandMark() {
   return (
@@ -195,6 +199,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
   const appliedTenantRouteId = useRef<string | null>(null);
   const [tenantPropertyId, setTenantPropertyId] = useState('');
   const [showLeaseForm, setShowLeaseForm] = useState(false);
+  const [openPropertyFormFromDashboard, setOpenPropertyFormFromDashboard] = useState(false);
   const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
   const [createdLeaseDetails, setCreatedLeaseDetails] = useState<CreatedLeaseDetails | null>(null);
 
@@ -242,6 +247,12 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
   }, [location, setLocation]);
 
   useEffect(() => {
+    if (location === '/properties' && openPropertyFormFromDashboard) {
+      setOpenPropertyFormFromDashboard(false);
+    }
+  }, [location, openPropertyFormFromDashboard]);
+
+  useEffect(() => {
     if (!properties.length) {
       setTenantPropertyId('');
     } else if (!properties.some((property) => property.id === tenantPropertyId)) {
@@ -272,8 +283,9 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
     if (createdLeaseDetails && leaseId !== createdLeaseDetails.lease.id) setCreatedLeaseDetails(null);
   }, [createdLeaseDetails, leaseId]);
 
-  const currentView = propertyId ? 'properties' : leaseId ? 'leases' : location.startsWith('/tenants') ? 'tenants' : location.startsWith('/leases') ? 'leases' : 'properties';
+  const currentView = propertyId ? 'properties' : leaseId ? 'leases' : location.startsWith('/tenants') ? 'tenants' : location.startsWith('/leases') ? 'leases' : location.startsWith('/dashboard') ? 'dashboard' : 'properties';
   const tabs = [
+    { href: '/dashboard', label: t('Dashboard', 'الرئيسية'), icon: LayoutDashboard, active: currentView === 'dashboard' },
     { href: '/properties', label: t('Properties', 'العقارات'), icon: Home, active: currentView === 'properties' },
     { href: '/tenants', label: t('Tenants', 'المستأجرون'), icon: UsersRound, active: currentView === 'tenants' },
     { href: '/leases', label: t('Leases', 'العقود'), icon: FileText, active: currentView === 'leases' },
@@ -301,6 +313,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
   function pageTitle() {
     if (propertyId) return routeProperty?.name ?? t('Property details', 'تفاصيل العقار');
     if (leaseId) return t('Lease details', 'تفاصيل العقد');
+    if (currentView === 'dashboard') return t('Dashboard', 'الرئيسية');
     if (currentView === 'tenants') return t('Tenants', 'المستأجرون');
     if (currentView === 'leases') return t('Leases', 'العقود');
     return t('Properties', 'العقارات');
@@ -375,7 +388,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
               {...recentLease}
               token={token}
               showCreatedConfirmation
-              onGoToDashboard={() => setLocation('/properties')}
+              onGoToDashboard={() => setLocation('/dashboard')}
             />
           ) : savedLeaseEntry ? (
             <LeaseDetailsPage
@@ -385,7 +398,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
               unitLabel={savedLeaseEntry.unit.unit_label}
               token={token}
               showCreatedConfirmation={false}
-              onGoToDashboard={() => setLocation('/properties')}
+              onGoToDashboard={() => setLocation('/dashboard')}
             />
           ) : detailQueries.some((query) => query.isPending) ? (
             <p role="status" className="flex items-center gap-2 border border-[#d1dbe4] bg-white p-5 text-sm text-[#718398]">
@@ -413,6 +426,26 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
           ) : (
             <EmptyState title={t('This property could not be found.', 'لم يتم العثور على هذا العقار.')} action={<Link href="/properties" className="text-xs font-semibold text-[#315b91] underline">{t('Back to properties', 'العودة إلى العقارات')}</Link>} />
           )
+        ) : currentView === 'dashboard' ? (
+          <Suspense fallback={<p role="status" className="border border-[#d1dbe4] bg-white p-5 text-sm text-[#718398]">{t('Loading dashboard…', 'جارٍ تحميل لوحة التحكم…')}</p>}>
+            <OwnerDashboard
+              properties={properties}
+              leaseEntries={leaseEntries}
+              today={today}
+              loading={detailQueries.some((query) => query.isPending)}
+              onOpenProperties={() => setLocation('/properties')}
+              onOpenTenants={() => setLocation('/tenants')}
+              onOpenLeases={() => setLocation('/leases')}
+              onAddProperty={() => {
+                setOpenPropertyFormFromDashboard(true);
+                setLocation('/properties');
+              }}
+              onAddTenantLease={() => {
+                setShowLeaseForm(true);
+                setLocation('/tenants');
+              }}
+            />
+          </Suspense>
         ) : currentView === 'properties' ? (
           <div className="space-y-4">
             <section className="flex flex-wrap items-end justify-between gap-3 border border-[#d1dbe4] bg-white p-4 sm:p-5">
@@ -423,6 +456,7 @@ export function PropertyManagementWorkspace({ user, token, onSignOut }: Props) {
               <CreatePropertyForm
                 token={token}
                 userId={user.id}
+                initiallyOpen={openPropertyFormFromDashboard}
                 onCreated={(id) => {
                   setCreatedPropertyId(id);
                   setLocation(`/properties/${encodeURIComponent(id)}`);

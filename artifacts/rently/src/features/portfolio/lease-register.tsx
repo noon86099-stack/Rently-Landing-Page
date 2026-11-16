@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { useI18n, useLocalizedFormats } from '@/lib/i18n';
 import { propertyLocation, type Lease, type PropertyDetails, type Unit } from '@/lib/rently-data';
 import { LeaseRecord } from './lease-record';
+import { leaseStatusOnDate } from './lease-status';
 
 type LeaseEntry = {
   property: PropertyDetails;
@@ -49,13 +50,14 @@ function LeaseSummaryCard({ entry, token, userId, today }: Omit<Props, 'entries'
   const lease = entry.lease;
   const tenantName = lease.tenants?.full_name ?? t('Tenant unavailable', 'المستأجر غير متاح');
   const payment = paymentSummary(entry, today, t);
-  const leaseStatus = lease.status === 'active'
+  const effectiveStatus = leaseStatusOnDate(lease, today);
+  const leaseStatus = effectiveStatus === 'active'
     ? t('Active', 'ساري')
-    : lease.status === 'ended'
+    : effectiveStatus === 'ended'
       ? t('Ended', 'منتهٍ')
-      : lease.status === 'upcoming'
+      : effectiveStatus === 'upcoming'
         ? t('Upcoming', 'قادم')
-        : lease.status;
+        : effectiveStatus;
   const statusTone = {
     paid: 'border-[#a9cf86] bg-[#eef6e6] text-[#3d6324]',
     overdue: 'border-red-300 bg-red-50 text-red-800',
@@ -136,7 +138,7 @@ export function LeaseRegister({ entries, token, userId, today }: Props) {
     groups.set(entry.property.id, group);
   }
   const sortedGroups = [...groups.values()].sort((a, b) => a[0].property.name.localeCompare(b[0].property.name));
-  const activeEntries = entries.filter((entry) => entry.lease.status === 'active');
+  const activeEntries = entries.filter((entry) => leaseStatusOnDate(entry.lease, today) === 'active');
   const activeRent = activeEntries.reduce((sum, entry) => sum + (entry.lease.monthly_rent ?? 0), 0);
   const paymentsNeedingAttention = entries.reduce(
     (sum, entry) => sum + paymentSummary(entry, today, t).attentionCount,

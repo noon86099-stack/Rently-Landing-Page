@@ -19,7 +19,7 @@ function Home() {
 }
 function Router() {
   const [location] = useLocation();
-  const isRentlyRoute = location === '/' || /^\/(?:properties(?:\/[^/]+)?|tenants(?:\/[^/]+)?|leases(?:\/[^/]+)?)\/?$/.test(location);
+  const isRentlyRoute = location === '/' || /^\/(?:dashboard|properties(?:\/[^/]+)?|tenants(?:\/[^/]+)?|leases(?:\/[^/]+)?)\/?$/.test(location);
   return (
     <RoutedErrorBoundary>
       {isRentlyRoute ? <Home /> : <NotFound />}
