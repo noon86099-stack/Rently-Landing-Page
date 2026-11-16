@@ -53,6 +53,9 @@ async function database() {
   const tenantPortalPhoneLength = await readFile(new URL("supabase/migrations/20261116000600_rently_tenant_portal_short_phone.sql", root), "utf8");
   await db.exec(tenantPortalPhoneLength);
   await db.exec(tenantPortalPhoneLength);
+  const stripeCheckout = await readFile(new URL("supabase/migrations/20261116000700_rently_stripe_checkout.sql", root), "utf8");
+  await db.exec(stripeCheckout);
+  await db.exec(stripeCheckout);
   await db.exec(`
     insert into public.rently_properties (id,owner_id,name) values ('${property}','${owner}','Test property');
     insert into public.rently_units (id,owner_id,property_id,unit_label) values ('${unit}','${owner}','${property}','A');
@@ -366,5 +369,73 @@ test("public tenant lookup matches both contacts and only exposes one owner's re
       [other, lease2],
     );
     assert.equal((await lookup()).rows.length, 0, "ambiguous matches across owners return no private record");
+  } finally { await db.close(); }
+});
+
+test("Stripe rent confirmations validate amount, keep payment references, and are idempotent", async () => {
+  const db = await database();
+  try {
+    const tenantId = "77777777-7777-4777-8777-777777777777";
+    const leaseId = "88888888-8888-4888-8888-888888888888";
+    await db.query(
+      `insert into public.rently_tenants(id,owner_id,full_name,email,phone)
+       values($1,$2,'Stripe Tenant','stripe@example.com','898989')`,
+      [tenantId, owner],
+    );
+    await db.query(
+      `insert into public.rently_leases(id,owner_id,unit_id,tenant_id,start_date,end_date,status,monthly_rent,due_day)
+       values($1,$2,$3,$4,current_date-30,current_date+90,'active',900,1)`,
+      [leaseId, owner, unit, tenantId],
+    );
+    await db.query(
+      `insert into public.rently_payments(owner_id,lease_id,due_date,amount)
+       values($1,$2,current_date,900)`,
+      [owner, leaseId],
+    );
+    const paymentId = (await db.query<{ id: string }>(
+      "select id from public.rently_payments where lease_id=$1",
+      [leaseId],
+    )).rows[0].id;
+    const args = [paymentId, "cs_test_rently_12345", "pi_test_rently_12345", 90000, "usd"];
+
+    assert.equal((await db.query<{ recorded: boolean }>(
+      "select public.record_rently_stripe_payment($1,$2,$3,$4,$5) as recorded",
+      args,
+    )).rows[0].recorded, true);
+    assert.equal((await db.query<{ recorded: boolean }>(
+      "select public.record_rently_stripe_payment($1,$2,$3,$4,$5) as recorded",
+      args,
+    )).rows[0].recorded, true);
+
+    const payment = (await db.query<{
+      paid_at: string | null;
+      stripe_checkout_session_id: string | null;
+      stripe_payment_intent_id: string | null;
+    }>(
+      `select paid_at::text, stripe_checkout_session_id, stripe_payment_intent_id
+       from public.rently_payments where id=$1`,
+      [paymentId],
+    )).rows[0];
+    assert.ok(payment.paid_at);
+    assert.equal(payment.stripe_checkout_session_id, args[1]);
+    assert.equal(payment.stripe_payment_intent_id, args[2]);
+
+    await assert.rejects(
+      db.query("select public.record_rently_stripe_payment($1,$2,$3,$4,$5)", [
+        paymentId, args[1], args[2], 89999, "usd",
+      ]),
+      /amount does not match/,
+    );
+    await assert.rejects(
+      db.query("select public.record_rently_stripe_payment($1,$2,$3,$4,$5)", [
+        paymentId, args[1], args[2], args[3], "eur",
+      ]),
+      /Invalid Stripe payment confirmation/,
+    );
+    await db.exec("set role anon");
+    await assert.rejects(
+      db.query("select public.record_rently_stripe_payment($1,$2,$3,$4,$5)", args),
+      /permission/,
+    );
   } finally { await db.close(); }
 });

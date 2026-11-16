@@ -40,6 +40,23 @@ export interface RentlyTenantPortalLookup {
   paymentStatus: RentlyTenantPortalLookupPaymentStatus;
 }
 
+export interface RentlyTenantPortalCheckoutInput {
+  /**
+     * @minLength 3
+     * @maxLength 320
+     */
+  email: string;
+  /**
+     * @minLength 6
+     * @maxLength 40
+     */
+  phone: string;
+}
+
+export interface RentlyTenantPortalCheckout {
+  checkoutUrl: string;
+}
+
 export interface RentlyProperty {
   id: string;
   name: string;

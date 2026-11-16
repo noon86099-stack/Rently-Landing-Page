@@ -34,6 +34,8 @@ import type {
   RentlyPaymentInput,
   RentlyProperty,
   RentlyPropertyInput,
+  RentlyTenantPortalCheckout,
+  RentlyTenantPortalCheckoutInput,
   RentlyTenantPortalLookup,
   RentlyTenantPortalLookupInput,
   RentlyUnit,
@@ -255,6 +257,94 @@ export const useLookupRentlyTenantPortal = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getLookupRentlyTenantPortalMutationOptions(options), queryClient);
+    }
+
+export const getCreateRentlyTenantPortalCheckoutUrl = () => {
+
+
+
+
+  return `/api/rently/tenant-portal/checkout`
+}
+
+/**
+ * @summary Start a test-mode rent payment after matching tenant details
+ */
+export const createRentlyTenantPortalCheckout = async (rentlyTenantPortalCheckoutInput: RentlyTenantPortalCheckoutInput, options?: Parameters<typeof customFetch>[1]): Promise<RentlyTenantPortalCheckout> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RentlyTenantPortalCheckout>(getCreateRentlyTenantPortalCheckoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(rentlyTenantPortalCheckoutInput)
+  }
+);}
+
+
+
+
+
+export const getCreateRentlyTenantPortalCheckoutMutationKey = () => ['createRentlyTenantPortalCheckout'] as const;
+
+export const getCreateRentlyTenantPortalCheckoutMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRentlyTenantPortalCheckout>>, TError,CreateRentlyTenantPortalCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRentlyTenantPortalCheckout>>, TError,CreateRentlyTenantPortalCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getCreateRentlyTenantPortalCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRentlyTenantPortalCheckout>>, CreateRentlyTenantPortalCheckoutMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRentlyTenantPortalCheckout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRentlyTenantPortalCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createRentlyTenantPortalCheckout>>>
+    export type CreateRentlyTenantPortalCheckoutMutationBody = BodyType<RentlyTenantPortalCheckoutInput>
+    export type CreateRentlyTenantPortalCheckoutMutationError = ErrorType<void>
+    export type CreateRentlyTenantPortalCheckoutMutationVariables = {data: BodyType<RentlyTenantPortalCheckoutInput>}
+
+    /**
+ * @summary Start a test-mode rent payment after matching tenant details
+ */
+export const useCreateRentlyTenantPortalCheckout = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRentlyTenantPortalCheckout>>, TError,CreateRentlyTenantPortalCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createRentlyTenantPortalCheckout>>,
+        TError,
+        CreateRentlyTenantPortalCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateRentlyTenantPortalCheckoutMutationOptions(options), queryClient);
     }
 
 export const getCreateRentlyPropertyUrl = () => {

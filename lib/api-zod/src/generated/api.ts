@@ -47,6 +47,27 @@ export const LookupRentlyTenantPortalResponse = zod.object({
 
 
 /**
+ * @summary Start a test-mode rent payment after matching tenant details
+ */
+export const createRentlyTenantPortalCheckoutBodyEmailMin = 3;
+export const createRentlyTenantPortalCheckoutBodyEmailMax = 320;
+
+export const createRentlyTenantPortalCheckoutBodyPhoneMin = 6;
+export const createRentlyTenantPortalCheckoutBodyPhoneMax = 40;
+
+
+
+export const CreateRentlyTenantPortalCheckoutBody = zod.object({
+  "email": zod.string().email().min(createRentlyTenantPortalCheckoutBodyEmailMin).max(createRentlyTenantPortalCheckoutBodyEmailMax),
+  "phone": zod.string().min(createRentlyTenantPortalCheckoutBodyPhoneMin).max(createRentlyTenantPortalCheckoutBodyPhoneMax)
+})
+
+export const CreateRentlyTenantPortalCheckoutResponse = zod.object({
+  "checkoutUrl": zod.string().url()
+})
+
+
+/**
  * @summary Create an owner property
  */
 export const createRentlyPropertyBodyNameMax = 160;

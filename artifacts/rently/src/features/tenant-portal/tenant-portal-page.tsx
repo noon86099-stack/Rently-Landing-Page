@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Home } from 'lucide-react';
 import {
   useLookupRentlyTenantPortal,
+  useCreateRentlyTenantPortalCheckout,
   type RentlyTenantPortalLookup,
 } from '@workspace/api-client-react';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -16,10 +17,16 @@ export function TenantPortalPage() {
   const { t, direction } = useI18n();
   const { formatDate, formatMoney } = useLocalizedFormats();
   const lookup = useLookupRentlyTenantPortal();
+  const checkout = useCreateRentlyTenantPortalCheckout();
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [summary, setSummary] = useState<RentlyTenantPortalLookup | null>(null);
   const [error, setError] = useState('');
+  const [checkoutError, setCheckoutError] = useState('');
+  const [checkoutNotice] = useState<'success' | 'pending' | 'cancelled' | null>(() => {
+    const payment = new URLSearchParams(window.location.search).get('payment');
+    return payment === 'success' || payment === 'pending' || payment === 'cancelled' ? payment : null;
+  });
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,6 +44,25 @@ export function TenantPortalPage() {
           : status === 400
             ? t('Enter a valid email address and phone number.', 'أدخل بريدًا إلكترونيًا ورقم هاتف صحيحين.')
             : t('The tenant details could not be checked right now.', 'تعذّر التحقق من بيانات المستأجر الآن.'));
+    }
+  }
+
+  async function startCheckout() {
+    setCheckoutError('');
+    try {
+      const result = await checkout.mutateAsync({
+        data: { email: email.trim(), phone: phone.trim() },
+      });
+      window.location.assign(result.checkoutUrl);
+    } catch (cause) {
+      const status = httpStatus(cause);
+      setCheckoutError(status === 404
+        ? t('No outstanding rent payment matched those details.', 'لم نجد دفعة إيجار مستحقة بهذه البيانات.')
+        : status === 409
+          ? t('This rent payment is already marked as paid. Check the status again.', 'تم تسجيل هذه الدفعة كمدفوعة. تحقق من الحالة مجددًا.')
+          : status === 429
+            ? t('Too many checkout attempts. Please try again later.', 'محاولات دفع كثيرة. يرجى المحاولة لاحقًا.')
+            : t('Test checkout is temporarily unavailable.', 'الدفع التجريبي غير متاح مؤقتًا.'));
     }
   }
 
@@ -76,6 +102,24 @@ export function TenantPortalPage() {
           <p className="font-mono text-[9px] uppercase tracking-[.12em] text-[#3f7cff]">{t('Tenant access', 'دخول المستأجر')}</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-[-.05em]">{t('Tenant Portal', 'بوابة المستأجر')}</h1>
           <p className="mt-2 text-sm text-[#61768b]">{t('Enter the email and phone number registered with your landlord.', 'أدخل البريد الإلكتروني ورقم الهاتف المسجلين لدى المالك.')}</p>
+          {checkoutNotice && (
+            <p
+              role="status"
+              className={`mt-4 border-s-2 px-3 py-2 text-sm ${
+                checkoutNotice === 'success'
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
+                  : checkoutNotice === 'pending'
+                    ? 'border-amber-500 bg-amber-50 text-amber-900'
+                    : 'border-[#cbd7e1] bg-[#f2f6f9] text-[#526c83]'
+              }`}
+            >
+              {checkoutNotice === 'success'
+                ? t('Payment confirmed. The paid status is now visible to your landlord.', 'تم تأكيد الدفع، وأصبحت الحالة المدفوعة ظاهرة للمالك.')
+                : checkoutNotice === 'pending'
+                  ? t('Payment confirmation is still processing. Check the rent status again shortly.', 'ما زال تأكيد الدفع قيد المعالجة. تحقق من حالة الإيجار بعد قليل.')
+                  : t('Payment was cancelled. No payment was recorded.', 'تم إلغاء الدفع، ولم تُسجل أي دفعة.')}
+            </p>
+          )}
 
           <form onSubmit={submit} className="mt-6 grid gap-4" aria-label={t('Tenant details lookup', 'التحقق من بيانات المستأجر')}>
             <label className="grid gap-1.5 text-xs font-semibold text-[#425b72]">
@@ -133,15 +177,24 @@ export function TenantPortalPage() {
                 </div>
               </dl>
               {summary.paymentStatus !== 'paid' && (
-                <button
-                  type="button"
-                  disabled
-                  title={t('Online payments will be available later.', 'الدفع الإلكتروني سيتاح لاحقًا.')}
-                  aria-label={t('Pay Now (not available yet)', 'ادفع الآن (غير متاح بعد)')}
-                  className="mt-5 min-h-11 w-full bg-[#3f7cff] px-4 text-sm font-semibold text-white opacity-60"
-                >
-                  {t('Pay Now', 'ادفع الآن')}
-                </button>
+                <>
+                  {checkoutError && (
+                    <p role="alert" className="mt-4 border-s-2 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-800">
+                      {checkoutError}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={startCheckout}
+                    disabled={checkout.isPending}
+                    aria-busy={checkout.isPending}
+                    className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-md bg-[#3f7cff] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#2f68e0] disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {checkout.isPending
+                      ? t('Opening secure checkout…', 'جارٍ فتح صفحة الدفع الآمنة…')
+                      : t('Pay Now', 'ادفع الآن')}
+                  </button>
+                </>
               )}
             </section>
           )}

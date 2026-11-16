@@ -1,5 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { runMigrations } from "stripe-replit-sync";
+import { getStripeSync, getUncachableStripeClient, markStripeSyncReady } from "./lib/stripeClient";
 
 const rawPort = process.env["PORT"];
 
@@ -15,11 +17,71 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+async function initializeStripe() {
+  let stage = "database_configuration";
+  try {
+    const expectedAccountId = process.env.RENTLY_STRIPE_ACCOUNT_ID;
+    if (!expectedAccountId) {
+      logger.warn("Stripe checkout is paused until the Rently test account is confirmed.");
+      return;
+    }
 
-  logger.info({ port }, "Server listening");
+    stage = "stripe_account_check";
+    const stripe = await getUncachableStripeClient();
+    const account = await stripe.accounts.retrieve();
+    if (account.id !== expectedAccountId) {
+      throw new Error("The connected Stripe account does not match the confirmed Rently account.");
+    }
+
+    stage = "database_configuration";
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL is required for Stripe's managed data sync.");
+    }
+
+    stage = "stripe_sync_migrations";
+    await runMigrations({ databaseUrl });
+
+    stage = "stripe_connection";
+    const stripeSync = await getStripeSync();
+
+    stage = "managed_webhook";
+    const configuredDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+    if (!configuredDomain) {
+      throw new Error("REPLIT_DOMAINS is required to configure Stripe's test webhook.");
+    }
+    const webhookBaseUrl = configuredDomain.startsWith("http")
+      ? configuredDomain
+      : `https://${configuredDomain}`;
+    await stripeSync.findOrCreateManagedWebhook(`${webhookBaseUrl}/api/stripe/webhook`);
+
+    stage = "stripe_backfill";
+    await stripeSync.syncBackfill({ object: "all" });
+    markStripeSyncReady();
+  } catch (error) {
+    logger.error(
+      { stage, errorName: error instanceof Error ? error.name : "unknown" },
+      "Stripe initialization step failed",
+    );
+    throw error;
+  }
+}
+
+async function startServer() {
+  await initializeStripe().catch(() => undefined);
+  app.listen(port, (err) => {
+    if (err) {
+      logger.error({ errorName: err instanceof Error ? err.name : "unknown" }, "Error listening on port");
+      process.exit(1);
+    }
+    logger.info({ port }, "Server listening");
+  });
+}
+
+void startServer().catch((error: unknown) => {
+  logger.error(
+    { errorName: error instanceof Error ? error.name : "unknown" },
+    "API server startup failed",
+  );
+  process.exit(1);
 });

@@ -53,6 +53,35 @@ paths:
           description: Too many lookup attempts
         "503":
           description: Tenant lookup is not configured
+  /rently/tenant-portal/checkout:
+    post:
+      operationId: createRentlyTenantPortalCheckout
+      tags: [rently]
+      summary: Start a test-mode rent payment after matching tenant details
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RentlyTenantPortalCheckoutInput"
+      responses:
+        "200":
+          description: Stripe test checkout URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RentlyTenantPortalCheckout"
+        "400":
+          description: Invalid email or phone
+        "404":
+          description: No matching outstanding payment
+        "409":
+          description: Payment is already paid
+        "429":
+          description: Too many checkout attempts
+        "503":
+          description: Test checkout is not available
   /rently/properties:
     post:
       operationId: createRentlyProperty
@@ -268,6 +297,17 @@ components:
         paymentStatus:
           type: string
           enum: [paid, pending, overdue]
+    RentlyTenantPortalCheckoutInput:
+      type: object
+      required: [email, phone]
+      properties:
+        email: { type: string, format: email, minLength: 3, maxLength: 320 }
+        phone: { type: string, minLength: 6, maxLength: 40 }
+    RentlyTenantPortalCheckout:
+      type: object
+      required: [checkoutUrl]
+      properties:
+        checkoutUrl: { type: string, format: uri }
     RentlyProperty:
       type: object
       required: [id, name, streetAddress, city, region, propertyType]
