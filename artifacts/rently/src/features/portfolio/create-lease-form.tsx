@@ -245,7 +245,7 @@ export function CreateLeaseForm({ token, userId, propertyId, units, initialUnitI
           <DatePartsInput testId="input-lease-end" label={t('End date', 'تاريخ النهاية')} value={endDate} min={startDate || undefined} invalid={touched && !!errs.end} onChange={setEndDate} />
           {show('end')}
         </div>
-        <label className={labelCls}>{t('Monthly rent', 'الإيجار الشهري')} *<input dir="ltr" data-testid="input-lease-rent" type="number" inputMode="decimal" min="0.01" step="0.01" value={rent} aria-invalid={touched && !!errs.rent} onChange={(e) => setRent(e.target.value)} className={inputCls} />{show('rent')}</label>
+        <label className={labelCls}>{t('Monthly rent ($)', 'الإيجار الشهري ($)')} *<input dir="ltr" data-testid="input-lease-rent" type="number" inputMode="decimal" min="0.01" step="0.01" value={rent} aria-invalid={touched && !!errs.rent} onChange={(e) => setRent(e.target.value)} className={inputCls} />{show('rent')}</label>
         <label className={labelCls}>{t('Due day', 'يوم الاستحقاق')} *<input dir="ltr" data-testid="input-lease-due-day" type="number" min={1} max={31} step={1} value={dueDay} aria-invalid={touched && !!errs.due} onChange={(e) => { setDueDay(e.target.value); setDueTouched(true); }} className={inputCls} />{show('due')}<span className="normal-case tracking-normal text-[#8192a3]">{t('Days 29-31 clamp to month end.', 'الأيام 29-31 تُضبط على آخر الشهر.')}</span></label>
       </fieldset>
       <FormNotice error={error} success={success} />

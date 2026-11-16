@@ -120,7 +120,12 @@ export async function buildLeasePdf(data: LeasePdfData): Promise<Uint8Array> {
 
   drawSection("Lease terms");
   drawText(`Lease term: ${displayDate(data.startDate)} through ${displayDate(data.endDate)}`);
-  drawText(`Monthly rent: ${data.monthlyRent.toFixed(2)}`);
+  drawText(`Monthly rent: ${new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(data.monthlyRent)}`);
   drawText(
     `Monthly due day: ${data.dueDay} (when a month has fewer days, the due date is its final day)`,
     { size: 10 },

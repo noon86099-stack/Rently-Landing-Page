@@ -36,6 +36,11 @@ function DateLabel() {
   return createElement('bdi', { dir: direction }, formatDate('2026-11-16'));
 }
 
+function MoneyLabel() {
+  const { formatMoney } = useLocalizedFormats();
+  return createElement('span', null, formatMoney(1200));
+}
+
 function renderProvider() {
   return renderToStaticMarkup(createElement(I18nProvider, {
     children: createElement(LanguageLabel),
@@ -81,6 +86,17 @@ test('formatted Arabic dates keep right-to-left direction while English stays le
     renderToStaticMarkup(createElement(I18nProvider, { children: createElement(DateLabel) })),
     /<bdi dir="ltr">Nov 16, 2026<\/bdi>/,
   );
+});
+
+test('money is always displayed in US dollars in both interface languages', () => {
+  for (const language of ['ar', 'en'] as const) {
+    storageReturning(language);
+    const output = renderToStaticMarkup(createElement(I18nProvider, {
+      children: createElement(MoneyLabel),
+    }));
+    assert.ok(output.includes('$'), `${language} output should identify USD`);
+    assert.doesNotMatch(output, /US\$/, `${language} output should show only the dollar sign`);
+  }
 });
 
 test('saved English preference renders English immediately', () => {

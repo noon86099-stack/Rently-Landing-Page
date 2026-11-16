@@ -78,15 +78,33 @@ export function useI18n() {
   return value;
 }
 
+export function formatUsd(value: number, locale: string, compact = false) {
+  const options: Intl.NumberFormatOptions = compact
+    ? {
+        style: 'currency',
+        currency: 'USD',
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }
+    : {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      };
+  return new Intl.NumberFormat(locale, options)
+    .formatToParts(value)
+    .map((part) => part.type === 'currency' ? '$' : part.value)
+    .join('');
+}
+
 export function useLocalizedFormats() {
   const { locale } = useI18n();
   return {
     formatDate: (value: string) => new Intl.DateTimeFormat(locale, {
       day: '2-digit', month: 'short', year: 'numeric',
     }).format(new Date(`${value}T00:00:00`)),
-    formatMoney: (value: number) => new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 2, maximumFractionDigits: 2,
-    }).format(value),
+    formatMoney: (value: number) => formatUsd(value, locale),
     formatDateTime: (value: string) => new Date(value).toLocaleString(locale),
   };
 }

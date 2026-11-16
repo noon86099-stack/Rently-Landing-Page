@@ -98,7 +98,7 @@ export function LeaseForm({ unit, tenants, today, add, onDone, onCancel }: { uni
       <div className="grid grid-cols-2 gap-3">
         <Field label="البداية"><input type="date" data-testid="input-lease-start" className={inputCls} value={f.startDate} onChange={e => setF({ ...f, startDate: e.target.value })} /></Field>
         <Field label="النهاية"><input type="date" data-testid="input-lease-end" className={inputCls} value={f.endDate} onChange={e => setF({ ...f, endDate: e.target.value })} /></Field>
-        <Field label="الإيجار الشهري USD"><input dir="ltr" type="number" min="0" step="0.01" data-testid="input-lease-rent" className={inputCls} value={f.rent} onChange={e => setF({ ...f, rent: e.target.value })} /></Field>
+        <Field label="الإيجار الشهري ($)"><input dir="ltr" type="number" min="0" step="0.01" data-testid="input-lease-rent" className={inputCls} value={f.rent} onChange={e => setF({ ...f, rent: e.target.value })} /></Field>
         <Field label="يوم الاستحقاق"><input dir="ltr" type="number" min="1" max="31" data-testid="input-lease-dueday" className={inputCls} value={f.dueDay} onChange={e => setF({ ...f, dueDay: e.target.value })} /></Field>
       </div>
       <p className="font-mono text-[10px] text-[#6b8094]">أقصى مدة 10 سنوات · الأشهر القصيرة تُضبط لآخر يوم · لا تداخل للعقود</p>

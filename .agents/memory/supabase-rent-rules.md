@@ -29,6 +29,12 @@ Tenant Portal phone validation must allow the six-digit values already accepted 
 
 **How to apply:** keep OpenAPI, API, and database minimum lengths aligned with existing records; normalize punctuation instead of assuming every stored number has seven or more digits.
 
+Display all Rently monetary amounts as US dollars using only the `$` symbol; do not convert stored numeric values unless the user asks.
+
+**Why:** the user requested USD throughout the app and specifically asked for the visible symbol to be `$` only.
+
+**How to apply:** use the shared USD formatter for totals, rent, payments, charts, forms, and generated lease PDFs.
+
 Monthly rent is due on the contractual day of the month. If that day does not exist in a month, use the month's final day. An unpaid installment becomes overdue the day after its due date, with no grace period.
 
 **Why:** the user selected this recurring due-date rule.

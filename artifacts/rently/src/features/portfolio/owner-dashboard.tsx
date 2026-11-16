@@ -20,7 +20,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { Lease, Property, PropertyDetails, Unit } from '@/lib/rently-data';
-import { useI18n, useLocalizedFormats } from '@/lib/i18n';
+import { formatUsd, useI18n, useLocalizedFormats } from '@/lib/i18n';
 import { leaseStatusOnDate } from './lease-status';
 
 type LeaseEntry = {
@@ -279,7 +279,7 @@ export function OwnerDashboard({
                       <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={5}>
                         <CartesianGrid vertical={false} stroke="#e7edf2" />
                         <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#8191a0', fontSize: 11 }} dy={8} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#8191a0', fontSize: 10 }} width={54} tickFormatter={(value: number) => new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(value)} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#8191a0', fontSize: 10 }} width={64} tickFormatter={(value: number) => formatUsd(value, locale, true)} />
                         <Tooltip
                           cursor={{ fill: '#f3f6f9' }}
                           formatter={(value: number, name: string) => [

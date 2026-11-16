@@ -42,7 +42,12 @@ export function invalidatePortfolio(qc: QueryClient, userId: string, propertyId?
 }
 
 export function formatMoney(value: number) {
-  return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export function FormNotice({ error, success }: { error?: UiMessage; success?: UiMessage }) {
