@@ -234,3 +234,16 @@ export async function recordRentlyStripePayment(input: {
   );
   return result.rows[0]?.recorded === true;
 }
+
+export async function listUnpaidRentlyStripeSessions(afterId: string | null) {
+  const result = await getPool().query<{ id: string; session_id: string }>(
+    `select id::text, stripe_checkout_session_id as session_id
+     from public.rently_payments
+     where paid_at is null and stripe_checkout_session_id is not null
+       and ($1::uuid is null or id > $1::uuid)
+     order by id
+     limit 20`,
+    [afterId],
+  );
+  return result.rows;
+}

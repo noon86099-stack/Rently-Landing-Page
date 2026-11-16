@@ -25,10 +25,10 @@ async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecre
   }
 
   const data = await response.json() as {
-    items?: Array<{ settings?: { secret_key?: string; webhook_secret?: string } }>;
+    items?: Array<{ settings?: { secret_key?: string; secret?: string; webhook_secret?: string } }>;
   };
   const settings = data.items?.[0]?.settings;
-  const secretKey = settings?.secret_key;
+  const secretKey = settings?.secret_key ?? settings?.secret;
   if (!secretKey) {
     throw new Error("Connect the Rently Stripe account before enabling checkout.");
   }
@@ -36,7 +36,7 @@ async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecre
     throw new Error("Rently rent checkout is restricted to Stripe Test Mode.");
   }
 
-  return { secretKey, webhookSecret: settings.webhook_secret };
+  return { secretKey, webhookSecret: settings?.webhook_secret };
 }
 
 export async function getUncachableStripeClient(): Promise<Stripe> {

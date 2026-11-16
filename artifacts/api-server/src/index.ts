@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { runMigrations } from "stripe-replit-sync";
 import { getStripeSync, getUncachableStripeClient, markStripeSyncReady } from "./lib/stripeClient";
+import { startRentlyStripeReconciliation } from "./lib/rently-stripe-reconciliation";
 
 const rawPort = process.env["PORT"];
 
@@ -29,7 +30,7 @@ async function initializeStripe() {
     stage = "stripe_credentials";
     const stripe = await getUncachableStripeClient();
     stage = "stripe_account_retrieve";
-    const account = await stripe.accounts.retrieve();
+    const account = await stripe.accounts.retrieve(null);
     stage = "stripe_account_binding";
     if (account.id !== expectedAccountId) {
       logger.error(
@@ -67,6 +68,7 @@ async function initializeStripe() {
     stage = "stripe_backfill";
     await stripeSync.syncBackfill({ object: "all" });
     markStripeSyncReady();
+    startRentlyStripeReconciliation();
   } catch (error) {
     logger.error(
       { stage, errorName: error instanceof Error ? error.name : "unknown" },

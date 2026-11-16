@@ -3,6 +3,12 @@ import { StripeSync } from "stripe-replit-sync";
 
 let stripeSyncReady = false;
 
+function connectionError(reason: string): Error {
+  const error = new Error("Stripe connection is unavailable.");
+  error.name = reason;
+  return error;
+}
+
 export function markStripeSyncReady() {
   stripeSyncReady = true;
 }
@@ -20,7 +26,7 @@ async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecre
       : null;
 
   if (!hostname || !token) {
-    throw new Error("The connected Stripe integration is not available to this server.");
+    throw connectionError("StripeRuntimeConfigurationMissing");
   }
 
   const response = await fetch(
@@ -31,22 +37,22 @@ async function getStripeCredentials(): Promise<{ secretKey: string; webhookSecre
     },
   );
   if (!response.ok) {
-    throw new Error(`Unable to load Stripe connection (${response.status}).`);
+    throw connectionError(`StripeConnectionHttp${response.status}`);
   }
 
   const data = await response.json() as {
-    items?: Array<{ settings?: { secret_key?: string; webhook_secret?: string } }>;
+    items?: Array<{ settings?: { secret_key?: string; secret?: string; webhook_secret?: string } }>;
   };
   const settings = data.items?.[0]?.settings;
-  const secretKey = settings?.secret_key;
+  const secretKey = settings?.secret_key ?? settings?.secret;
   if (!secretKey) {
-    throw new Error("Connect the Rently Stripe account before enabling checkout.");
+    throw connectionError("StripeConnectionKeyMissing");
   }
   if (!secretKey.startsWith("sk_test_") && !secretKey.startsWith("rk_test_")) {
-    throw new Error("Rently rent checkout is restricted to Stripe Test Mode.");
+    throw connectionError("StripeTestModeRequired");
   }
 
-  return { secretKey, webhookSecret: settings.webhook_secret };
+  return { secretKey, webhookSecret: settings?.webhook_secret };
 }
 
 export async function getUncachableStripeClient(): Promise<Stripe> {
